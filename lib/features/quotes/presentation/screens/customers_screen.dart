@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:cutquote/core/pdf_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   final List<Map<String, String>> customers;
-  final List<Map<String, dynamic>> quotes; // 🔥 מקבלים את רשימת כל ההצעות
+  final List<Map<String, dynamic>> quotes;
   final Function(Map<String, String>) onCustomerAdded;
   final Function(int) onCustomerDeleted;
   final Function(Map<String, String>) onGenerateSummary;
@@ -27,6 +26,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
 
+  // פלטת הצבעים המדויקת מהעיצוב שלך
+  final Color backgroundColor = const Color(0xFFFAF7F0); // רקע שמנת חם
+  final Color primaryDark = const Color(0xFF513222); // חום שוקולד כהה
+  final Color accentOrange = const Color(0xFFE88432); // כתום חמרה
+  final Color cardColor = Colors.white;
+
   void _openAddCustomerDialog() {
     showDialog(
       context: context,
@@ -34,35 +39,79 @@ class _CustomersScreenState extends State<CustomersScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            title: const Text('הוספת לקוח חדש'),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'הוספת לקוח חדש',
+              style: TextStyle(color: primaryDark, fontWeight: FontWeight.bold),
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: _nameController,
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
                       labelText: 'שם הלקוח / חברה',
+                      labelStyle: const TextStyle(color: Colors.black54),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: accentOrange),
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _hpController,
-                    decoration: const InputDecoration(labelText: 'ח.פ / ת.ז'),
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: 'ח.פ / ת.ז',
+                      labelStyle: const TextStyle(color: Colors.black54),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: accentOrange),
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _addressController,
-                    decoration: const InputDecoration(labelText: 'כתובת'),
+                    style: const TextStyle(color: Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: 'כתובת',
+                      labelStyle: const TextStyle(color: Colors.black54),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: accentOrange),
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 8),
                   TextField(
                     controller: _phoneController,
-                    decoration: const InputDecoration(labelText: 'מספר טלפון'),
+                    style: const TextStyle(color: Colors.black87),
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'טלפון',
+                      labelStyle: const TextStyle(color: Colors.black54),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: accentOrange),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  _nameController.clear();
+                  _hpController.clear();
+                  _addressController.clear();
+                  _phoneController.clear();
+                  Navigator.pop(context);
+                },
                 child: const Text(
                   'ביטול',
                   style: TextStyle(color: Colors.grey),
@@ -71,18 +120,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
               ElevatedButton(
                 onPressed: () {
                   if (_nameController.text.isEmpty) return;
+
                   widget.onCustomerAdded({
                     'name': _nameController.text,
                     'hp': _hpController.text,
                     'address': _addressController.text,
                     'phone': _phoneController.text,
                   });
+
                   _nameController.clear();
                   _hpController.clear();
                   _addressController.clear();
                   _phoneController.clear();
                   Navigator.pop(context);
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accentOrange,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('שמירה'),
               ),
             ],
@@ -97,162 +152,116 @@ class _CustomersScreenState extends State<CustomersScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: backgroundColor,
         appBar: AppBar(
           title: const Text(
-            'ניהול לקוחות והיסטוריה',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            'ניהול לקוחות',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
-          backgroundColor: Colors.black,
+          centerTitle: true,
+          backgroundColor: primaryDark,
+          elevation: 0,
         ),
         body: widget.customers.isEmpty
             ? const Center(
                 child: Text(
-                  'אין לקוחות רשומים כרגע.',
-                  style: TextStyle(color: Colors.grey),
+                  'אין עדיין לקוחות רשומים.\nלחץ על כפתור ה- "+" להוספת לקוח.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black45, fontSize: 14),
                 ),
               )
             : ListView.builder(
+                padding: const EdgeInsets.all(16),
                 itemCount: widget.customers.length,
                 itemBuilder: (context, index) {
                   final customer = widget.customers[index];
 
-                  // 🔥 סינון הצעות המחיר השייכות אך ורק ללקוח הנוכחי הזה ברשימה
-                  final customerQuotes = widget.quotes
-                      .where(
-                        (quote) =>
-                            quote['customer'] != null &&
-                            quote['customer']['name'] == customer['name'],
-                      )
-                      .toList();
+                  final customerQuotes = widget.quotes.where((quote) {
+                    return quote['customer'] != null &&
+                        quote['customer']['name'] == customer['name'];
+                  }).toList();
 
                   return Card(
-                    color: Colors.grey[900],
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 6,
+                    color: cardColor,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: const BorderSide(color: Colors.black12),
                     ),
                     child: ExpansionTile(
-                      iconColor: Colors.blueAccent,
-                      collapsedIconColor: Colors.grey,
+                      iconColor: accentOrange,
+                      collapsedIconColor: primaryDark,
                       title: Text(
-                        customer['name'] ?? '',
+                        customer['name']!,
                         style: const TextStyle(
-                          color: Colors.white,
                           fontWeight: FontWeight.bold,
+                          color: Colors.black87,
                           fontSize: 16,
                         ),
                       ),
                       subtitle: Text(
-                        'טלפון: ${customer['phone'] ?? ''} | ${customerQuotes.length} הצעות שמורות',
+                        'ח.פ: ${customer['hp']} | טלפון: ${customer['phone']}',
                         style: const TextStyle(
-                          color: Colors.grey,
+                          color: Colors.black45,
                           fontSize: 13,
                         ),
                       ),
+                      childrenPadding: const EdgeInsets.all(16),
+                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // כפתור מהיר להפקת ריכוז חודשי מרוכז בתחילת הרשימה הפנימית
-                        if (customerQuotes.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: () =>
-                                  widget.onGenerateSummary(customer),
-                              icon: const Icon(Icons.analytics, size: 18),
-                              label: const Text(
-                                'הפק סיכום חודשי מרוכז (איחוד פריטים)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blueAccent,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size.fromHeight(38),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
+                        Text(
+                          'כתובת: ${customer['address']}',
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 14,
                           ),
-
-                        // רשימת הצעות המחיר של אותו לקוח
-                        customerQuotes.isEmpty
-                            ? const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Text(
-                                  'אין הצעות מחיר שמורות ללקוח זה.',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 13,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'הצעות מחיר במערכת: ${customerQuotes.length}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: primaryDark,
+                                fontSize: 13,
+                              ),
+                            ),
+                            if (customerQuotes.isNotEmpty)
+                              ElevatedButton.icon(
+                                onPressed: () =>
+                                    widget.onGenerateSummary(customer),
+                                icon: const Icon(
+                                  Icons.picture_as_pdf,
+                                  size: 16,
+                                ),
+                                label: const Text('ריכוז חודשי (PDF)'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryDark,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
-                              )
-                            : ListView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: customerQuotes.length,
-                                itemBuilder: (context, qIndex) {
-                                  final quote = customerQuotes[qIndex];
-                                  final int itemsCount =
-                                      (quote['items'] as List).length;
-                                  return ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                    ),
-                                    title: Text(
-                                      'הצעה מיום ${quote['date']}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      '$itemsCount פריטים בהצעה',
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    trailing: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          '₪${quote['total'].toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            color: Colors.greenAccent,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.share,
-                                            color: Colors.green,
-                                            size: 18,
-                                          ),
-                                          onPressed: () {
-                                            PdfService.generateAndShareQuote(
-                                              customer: quote['customer'],
-                                              items:
-                                                  List<
-                                                    Map<String, dynamic>
-                                                  >.from(quote['items']),
-                                              total: quote['total'],
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
                               ),
-
-                        // כפתור מחיקת לקוח בתחתית התפריט הנפתח שלו
+                          ],
+                        ),
+                        const Divider(height: 24, color: Colors.black12),
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
@@ -263,7 +272,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               size: 16,
                             ),
                             label: const Text(
-                              'מחק לקוח',
+                              'mחק לקוח',
                               style: TextStyle(
                                 color: Colors.redAccent,
                                 fontSize: 12,
@@ -278,7 +287,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
               ),
         floatingActionButton: FloatingActionButton(
           onPressed: _openAddCustomerDialog,
-          backgroundColor: Colors.blueAccent,
+          backgroundColor: accentOrange, // שינוי לכתום חמרה תואם
+          elevation: 2,
           child: const Icon(Icons.add, color: Colors.white),
         ),
       ),

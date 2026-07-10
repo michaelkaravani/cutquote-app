@@ -5,15 +5,14 @@ class QuoteBuilderScreen extends StatefulWidget {
   final List<Map<String, String>> customers;
   final List<Map<String, dynamic>> catalog;
   final Function(Map<String, dynamic>) onAddToCatalog;
-  final Function(Map<String, dynamic>)
-  onSaveQuote; // שים לב שהשורה הזו קיימת כאן!
+  final Function(Map<String, dynamic>) onSaveQuote;
 
   const QuoteBuilderScreen({
     super.key,
     required this.customers,
     required this.catalog,
     required this.onAddToCatalog,
-    required this.onSaveQuote, // וגם השורה הזו!
+    required this.onSaveQuote,
   });
 
   @override
@@ -25,9 +24,16 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
+  final TextEditingController notesController = TextEditingController();
 
+  bool saveToCatalog = false;
   Map<String, String>? selectedCustomer;
-  bool saveToCatalog = false; // משתנה למצב ה-Checkbox בדיאלוג
+
+  final Color backgroundColor = const Color(0xFFFAF7F0);
+  final Color primaryDark = const Color(0xFF513222);
+  final Color accentOrange = const Color(0xFFE88432);
+  final Color cardColor = Colors.white;
+  final Color buttonColor = const Color(0xFFA6968C);
 
   double calculateTotal() {
     double total = 0;
@@ -38,7 +44,6 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   }
 
   void openAddItemDialog() {
-    // 🔥 שינוי: במקום רק להציב "1", אנחנו גם בוחרים את כל הטקסט כדי שיימחק מיד בהקלדה
     quantityController.text = "1";
     quantityController.selection = TextSelection(
       baseOffset: 0,
@@ -55,12 +60,22 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
             return Directionality(
               textDirection: TextDirection.rtl,
               child: AlertDialog(
-                title: const Text('הוספת פריט להצעה'),
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Text(
+                  'הוספת פריט להצעה',
+                  style: TextStyle(
+                    color: primaryDark,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 content: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // בחירה מהירה מתוך קטלוג קיים
                       if (widget.catalog.isNotEmpty) ...[
                         DropdownButtonFormField<Map<String, dynamic>>(
                           dropdownColor: Colors.white,
@@ -68,24 +83,24 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             color: Colors.black,
                             fontSize: 16,
                           ),
-                          alignment: Alignment
-                              .centerRight, // 🔥 חדש: מיישר את התפריט עצמו לימין
-                          decoration: const InputDecoration(
+                          alignment: Alignment.centerRight,
+                          decoration: InputDecoration(
                             labelText: 'בחירה מהירה מהקטלוג',
-                            labelStyle: TextStyle(color: Colors.black54),
+                            labelStyle: const TextStyle(color: Colors.black54),
                             enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.black26),
+                              borderSide: BorderSide(
+                                color: primaryDark.withValues(alpha: 0.2),
+                              ),
                             ),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.blueAccent),
+                              borderSide: BorderSide(color: accentOrange),
                             ),
                           ),
                           items: widget.catalog.map((item) {
                             return DropdownMenuItem<Map<String, dynamic>>(
                               value: item,
                               child: Align(
-                                alignment: Alignment
-                                    .centerRight, // 🔥 מבטיח יישור ימני מוחלט של הטקסט
+                                alignment: Alignment.centerRight,
                                 child: Text(
                                   item['name'],
                                   style: const TextStyle(color: Colors.black),
@@ -100,8 +115,6 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                                 nameController.text = selectedItem['name'];
                                 priceController.text = selectedItem['price']
                                     .toString();
-
-                                // 🔥 חדש: ברגע שבוחרים מוצר, מסמנים אוטומטית את הכמות (1) כדי שיהיה אפשר להקליד מעליה מיד
                                 quantityController.text = "1";
                                 quantityController.selection = TextSelection(
                                   baseOffset: 0,
@@ -114,26 +127,30 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                         const SizedBox(height: 15),
                         const Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.black26)),
+                            Expanded(child: Divider(color: Colors.black12)),
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 8.0),
                               child: Text(
                                 'או הקלדה ידנית',
                                 style: TextStyle(
-                                  color: Colors.black45,
+                                  color: Colors.black38,
                                   fontSize: 12,
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: Colors.black26)),
+                            Expanded(child: Divider(color: Colors.black12)),
                           ],
                         ),
                       ],
-
                       TextField(
                         controller: nameController,
-                        decoration: const InputDecoration(
+                        style: const TextStyle(color: Colors.black),
+                        decoration: InputDecoration(
                           labelText: 'שם הפריט / השירות',
+                          labelStyle: const TextStyle(color: Colors.black54),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: accentOrange),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -143,12 +160,19 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             flex: 2,
                             child: TextField(
                               controller: priceController,
+                              style: const TextStyle(color: Colors.black),
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'מחיר ליחידה',
+                                labelStyle: const TextStyle(
+                                  color: Colors.black54,
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: accentOrange),
+                                ),
                               ),
                             ),
                           ),
@@ -157,28 +181,33 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             flex: 1,
                             child: TextField(
                               controller: quantityController,
+                              style: const TextStyle(color: Colors.black),
                               keyboardType: TextInputType.number,
-                              // 🔥 חדש: כשלוחצים על שדה הכמות ידנית, הוא יבחר את כל הטקסט אוטומטית
                               onTap: () {
                                 quantityController.selection = TextSelection(
                                   baseOffset: 0,
                                   extentOffset: quantityController.text.length,
                                 );
                               },
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 labelText: 'כמות',
+                                labelStyle: const TextStyle(
+                                  color: Colors.black54,
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(color: accentOrange),
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 15),
-
-                      // כפתור שמירה למועדפים
                       Row(
                         children: [
                           Checkbox(
                             value: saveToCatalog,
+                            activeColor: accentOrange,
                             onChanged: (val) {
                               dialogSetState(() {
                                 saveToCatalog = val ?? false;
@@ -240,6 +269,10 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       quantityController.clear();
                       Navigator.pop(context);
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentOrange,
+                      foregroundColor: Colors.white,
+                    ),
                     child: const Text('שמירה'),
                   ),
                 ],
@@ -253,302 +286,441 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          'יצירת הצעת מחיר',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-      ),
-      body: Column(
-        children: [
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[800]!),
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          title: const Text(
+            'הצעה חדשה',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
-            child: widget.customers.isEmpty
-                ? const Row(
+          ),
+          centerTitle: true,
+          backgroundColor: primaryDark,
+          elevation: 0,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircleAvatar(
+                backgroundColor: accentOrange,
+                child: const Text(
+                  'CQ',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'לקוח',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: widget.customers.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: accentOrange),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'יש להוסיף תחילה לקוחות במסך "לקוחות".',
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : InkWell(
+                        onTap: () {
+                          _showCustomerPicker(context);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                selectedCustomer?['name'] ?? '-- בחר לקוח --',
+                                style: const TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                color: primaryDark,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
+              if (selectedCustomer != null) ...[
+                const SizedBox(height: 6),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    'ח.פ: ${selectedCustomer!['hp']} | כתובת: ${selectedCustomer!['address']}',
+                    style: const TextStyle(color: Colors.black45, fontSize: 12),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'פריטים',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    '${items.length}',
+                    style: const TextStyle(color: Colors.black45),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+
+              InkWell(
+                onTap: openAddItemDialog,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  height: 55,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: accentOrange.withValues(alpha: 0.6),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.info_outline, color: Colors.orangeAccent),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'על מנת לשייך לקוח להצעה, יש להוסיף תחילה לקוחות במסך "לקוחות".',
-                          style: TextStyle(color: Colors.grey, fontSize: 13),
+                      Icon(Icons.add, color: accentOrange, size: 20),
+                      const SizedBox(width: 6),
+                      Text(
+                        'הוסף שירות / פריט',
+                        style: TextStyle(
+                          color: accentOrange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
                         ),
                       ),
                     ],
-                  )
-                : DropdownButtonHideUnderline(
-                    child: DropdownButton<Map<String, String>>(
-                      dropdownColor: Colors.grey[900],
-                      hint: const Text(
-                        'בחר לקוח עבור ההצעה',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      value: selectedCustomer,
-                      isExpanded: true,
-                      icon: const Icon(
-                        Icons.arrow_drop_down,
-                        color: Colors.white,
-                      ),
-                      items: widget.customers.map((
-                        Map<String, String> customer,
-                      ) {
-                        return DropdownMenuItem<Map<String, String>>(
-                          value: customer,
-                          child: Text(
-                            customer['name']!,
-                            style: const TextStyle(color: Colors.white),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (Map<String, String>? newValue) {
-                        setState(() {
-                          selectedCustomer = newValue;
-                        });
-                      },
-                    ),
                   ),
-          ),
-          if (selectedCustomer != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'עבור: ${selectedCustomer!['name']}',
-                      style: const TextStyle(
-                        color: Colors.blueAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              if (items.isNotEmpty)
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (context, index) {
+                    final item = items[index];
+                    final double itemTotal = item['price'] * item['quantity'];
+                    return Card(
+                      color: cardColor,
+                      surfaceTintColor: Colors.transparent,
+                      elevation: 0,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.black12),
                       ),
+                      child: ListTile(
+                        title: Text(
+                          item['name'],
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${item['quantity']} יח\' X ₪${item['price'].toStringAsFixed(2)}',
+                          style: const TextStyle(color: Colors.black45),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '₪${itemTotal.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: primaryDark,
+                                fontSize: 15,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () =>
+                                  setState(() => items.removeAt(index)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              const SizedBox(height: 20),
+
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.black12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'סכום ביניים',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                        Text(
+                          '₪${calculateTotal().toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'ח.פ: ${selectedCustomer!['hp']} | כתובת: ${selectedCustomer!['address']}',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    const Divider(height: 24, color: Colors.black12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'הנחה',
+                          style: TextStyle(color: Colors.black54),
+                        ),
+                        Container(
+                          width: 80,
+                          height: 35,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: backgroundColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.black12),
+                          ),
+                          child: const Text(
+                            '₪ 0',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                      ],
                     ),
-                    const Divider(color: Colors.grey, height: 20),
+                    const Divider(height: 24, color: Colors.black12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'סה"כ לתשלום',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryDark,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          '₪${calculateTotal().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: accentOrange,
+                            fontSize: 20,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: openAddItemDialog,
-              icon: const Icon(Icons.add),
-              label: const Text(
-                'הוסף פריט להצעה',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-                backgroundColor: Colors.blueAccent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 20),
+
+              const Text(
+                'הערות ללקוח',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: 15),
-          Expanded(
-            child: items.isEmpty
-                ? const Center(
-                    child: Text(
-                      'אין עדיין פריטים בהצעת המחיר',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      final double itemTotal = item['price'] * item['quantity'];
-                      return Card(
-                        color: Colors.grey[900],
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: ListTile(
-                          title: Text(
-                            item['name'],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            '${item['quantity']} יח\' X ₪${item['price'].toStringAsFixed(2)}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                          trailing: SizedBox(
-                            width: 140,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '₪${itemTotal.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: Colors.greenAccent,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.redAccent,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => items.removeAt(index)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+              const SizedBox(height: 6),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                style: const TextStyle(color: Colors.black87),
+                decoration: InputDecoration(
+                  fillColor: cardColor,
+                  filled: true,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black12),
                   ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: accentOrange),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              ElevatedButton(
+                onPressed: items.isEmpty
+                    ? null
+                    : () {
+                        final DateTime now = DateTime.now();
+                        final String formattedDate =
+                            "${now.day}/${now.month}/${now.year}";
+
+                        widget.onSaveQuote({
+                          'customer': selectedCustomer,
+                          'items': List<Map<String, dynamic>>.from(items),
+                          'total': calculateTotal(),
+                          'date': formattedDate,
+                        });
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('הצעת המחיר נשמרה בהיסטוריה בהצלחה!'),
+                          ),
+                        );
+
+                        setState(() {
+                          items.clear();
+                          selectedCustomer = null;
+                          notesController.clear();
+                        });
+                      },
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: buttonColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.black12,
+                  disabledForegroundColor: Colors.black26,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'שמירת הצעה',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              if (items.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () async {
+                    await PdfService.generateAndShareQuote(
+                      customer: selectedCustomer,
+                      items: items,
+                      total: calculateTotal(),
+                    );
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('שתף כ-PDF'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: primaryDark,
+                    minimumSize: const Size.fromHeight(40),
+                  ),
+                ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showCustomerPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFFFAF7F0),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'סה"כ לתשלום:',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'בחר לקוח מהרשימה',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF513222),
                 ),
-                Text(
-                  '₪${calculateTotal().toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                // כפתור 1: שיתוף PDF
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: items.isEmpty
-                        ? null
-                        : () async {
-                            await PdfService.generateAndShareQuote(
-                              customer: selectedCustomer,
-                              items: items,
-                              total: calculateTotal(),
-                            );
-                          },
-                    icon: const Icon(Icons.share, size: 18),
-                    label: const Text(
-                      'שתף PDF',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: widget.customers.length,
+                itemBuilder: (context, index) {
+                  final customer = widget.customers[index];
+                  return ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Color(0xFFE88432),
+                      child: Icon(Icons.person, color: Colors.white),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(45),
-                      backgroundColor: Colors.green[700],
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[800],
-                      disabledForegroundColor: Colors.grey[600],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // כפתור 2: שמירה למערכת בשביל הריכוז החודשי
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: items.isEmpty
-                        ? null
-                        : () {
-                            final DateTime now = DateTime.now();
-                            final String formattedDate =
-                                "${now.day}/${now.month}/${now.year}";
-
-                            widget.onSaveQuote({
-                              'customer': selectedCustomer,
-                              'items': List<Map<String, dynamic>>.from(items),
-                              'total': calculateTotal(),
-                              'date': formattedDate,
-                            });
-
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'הצעת המחיר נשמרה בהיסטוריה בהצלחה!',
-                                ),
-                              ),
-                            );
-
-                            setState(() {
-                              items.clear();
-                              selectedCustomer = null;
-                            });
-                          },
-                    icon: const Icon(Icons.save, size: 18),
-                    label: const Text(
-                      'שמור הצעה',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(45),
-                      backgroundColor: Colors.blueAccent,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey[800],
-                      disabledForegroundColor: Colors.grey[600],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                    title: Text(customer['name']!),
+                    onTap: () {
+                      setState(() {
+                        selectedCustomer = customer;
+                      });
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),

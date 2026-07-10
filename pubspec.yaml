@@ -31,6 +31,7 @@ dependencies:
   wakelock_plus: ^1.2.8
   flutter:
     sdk: flutter
+  flutter_launcher_icons: "^0.13.1"
   pdf: ^3.11.1
   printing: ^5.13.2
   shared_preferences: ^2.3.5
@@ -38,6 +39,8 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -91,3 +94,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#FAF7F0"
+  adaptive_icon_foreground: "assets/images/app_icon.png"
