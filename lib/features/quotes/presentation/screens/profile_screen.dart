@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cutquote/core/firestore_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -12,33 +13,59 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final _businessNameController = TextEditingController(
-    text: 'מיכאל פרסיז׳ן ארט',
-  );
-  final _emailController = TextEditingController(text: 'micha@example.com');
-  final _phoneController = TextEditingController(text: '050-1234567');
-  final _passwordController = TextEditingController(text: '123456');
+  final _businessNameController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   bool _isEditing = false;
-  bool _isPasswordVisible = false;
+  bool _isLoading = true;
+  bool _isSaving = false;
 
   final Color backgroundColor = const Color(0xFFFAF7F0);
   final Color primaryDark = const Color(0xFF513222);
   final Color accentOrange = const Color(0xFFE88432);
   final Color cardColor = Colors.white;
 
+  String get _uid => FirebaseAuth.instance.currentUser!.uid;
+  String get _email => FirebaseAuth.instance.currentUser?.email ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
   @override
   void dispose() {
     _businessNameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadProfile() async {
+    try {
+      final profile = await FirestoreService.loadProfile(_uid);
+      if (!mounted) return;
+      setState(() {
+        _businessNameController.text = profile?['businessName'] ?? '';
+        _phoneController.text = profile?['phone'] ?? '';
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בטעינת הפרופיל: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   Future<void> _handleLogout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
+    await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
 
@@ -48,10 +75,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _handleSave() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      await FirestoreService.saveProfile(_uid, {
+        'businessName': _businessNameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+      });
+
+      if (!mounted) return;
       setState(() {
         _isEditing = false;
+        _isSaving = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -59,11 +99,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: accentOrange,
         ),
       );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בשמירת הפרופיל: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleSendPasswordReset() async {
+    if (_email.isEmpty) return;
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: _email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('קישור לאיפוס סיסמה נשלח לכתובת:\n$_email'),
+          backgroundColor: accentOrange,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה: ${e.message} (${e.code})'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: Center(child: CircularProgressIndicator(color: accentOrange)),
+      );
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -110,7 +190,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        _businessNameController.text,
+                        _businessNameController.text.isEmpty
+                            ? 'שם העסק שלך'
+                            : _businessNameController.text,
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -170,17 +252,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         TextFormField(
-                          controller: _emailController,
-                          enabled: _isEditing,
+                          initialValue: _email,
+                          enabled: false,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(
                               Icons.email_outlined,
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
+                            fillColor: Colors.grey[50],
+                            helperText: 'לא ניתן לשינוי כאן',
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -195,6 +276,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         TextFormField(
                           controller: _phoneController,
                           enabled: _isEditing,
+                          keyboardType: TextInputType.phone,
                           decoration: InputDecoration(
                             prefixIcon: const Icon(
                               Icons.phone_android_outlined,
@@ -206,44 +288,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 : Colors.grey[50],
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'סיסמת גישה במכשיר',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                            fontSize: 13,
-                          ),
-                        ),
-                        TextFormField(
-                          controller: _passwordController,
-                          enabled: _isEditing,
-                          obscureText: !_isPasswordVisible,
-                          decoration: InputDecoration(
-                            prefixIcon: const Icon(
-                              Icons.lock_outline,
-                              size: 20,
-                            ),
-                            filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
-                            suffixIcon: _isEditing
-                                ? IconButton(
-                                    icon: Icon(
-                                      _isPasswordVisible
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      size: 20,
-                                    ),
-                                    onPressed: () => setState(
-                                      () => _isPasswordVisible =
-                                          !_isPasswordVisible,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -251,7 +295,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
                 if (_isEditing) ...{
                   ElevatedButton(
-                    onPressed: _handleSave,
+                    onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentOrange,
                       minimumSize: const Size.fromHeight(50),
@@ -259,21 +303,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'שמירת שינויים',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'שמירת שינויים',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 10),
                   TextButton(
-                    onPressed: () => setState(() => _isEditing = false),
+                    onPressed: _isSaving
+                        ? null
+                        : () => setState(() => _isEditing = false),
                     child: const Text('ביטול'),
                   ),
                 },
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
+                TextButton.icon(
+                  onPressed: _handleSendPasswordReset,
+                  icon: Icon(Icons.lock_reset, color: primaryDark),
+                  label: Text(
+                    'שליחת קישור לאיפוס סיסמה',
+                    style: TextStyle(
+                      color: primaryDark,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
                 TextButton.icon(
                   onPressed: _handleLogout,
                   icon: const Icon(Icons.logout, color: Colors.redAccent),

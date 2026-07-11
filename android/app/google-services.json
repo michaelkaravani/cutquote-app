@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "592611403875",
+    "project_id": "cutquote-app",
+    "storage_bucket": "cutquote-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:592611403875:android:ae3d450ecbe9445ce6f056",
+        "android_client_info": {
+          "package_name": "com.example.cutquote"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8xREx5Q2vmkobI32c_C8BdzkUKbZmxWg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -6,6 +6,8 @@ class QuoteBuilderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> catalog;
   final Function(Map<String, dynamic>) onAddToCatalog;
   final Function(Map<String, dynamic>) onSaveQuote;
+  // הוספת פונקציה למחיקת פריט מהמועדפים/קטלוג כדי שתוכל לנהל אותם
+  final Function(int)? onDeleteFromCatalog;
 
   const QuoteBuilderScreen({
     super.key,
@@ -13,6 +15,7 @@ class QuoteBuilderScreen extends StatefulWidget {
     required this.catalog,
     required this.onAddToCatalog,
     required this.onSaveQuote,
+    this.onDeleteFromCatalog,
   });
 
   @override
@@ -76,6 +79,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // הצגת רשימת המועדפים שנוצרו על ידך בלבד
                       if (widget.catalog.isNotEmpty) ...[
                         DropdownButtonFormField<Map<String, dynamic>>(
                           dropdownColor: Colors.white,
@@ -85,8 +89,11 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           ),
                           alignment: Alignment.centerRight,
                           decoration: InputDecoration(
-                            labelText: 'בחירה מהירה מהקטלוג',
-                            labelStyle: const TextStyle(color: Colors.black54),
+                            labelText: 'בחירה מהירה מהמועדפים שלך',
+                            labelStyle: const TextStyle(
+                              color: Colors.black54,
+                              fontWeight: FontWeight.bold,
+                            ),
                             enabledBorder: UnderlineInputBorder(
                               borderSide: BorderSide(
                                 color: primaryDark.withValues(alpha: 0.2),
@@ -96,13 +103,14 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                               borderSide: BorderSide(color: accentOrange),
                             ),
                           ),
-                          items: widget.catalog.map((item) {
+                          items: widget.catalog.asMap().entries.map((entry) {
+                            final item = entry.value;
                             return DropdownMenuItem<Map<String, dynamic>>(
                               value: item,
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: Text(
-                                  item['name'],
+                                  "${item['name']} (₪${item['price']})",
                                   style: const TextStyle(color: Colors.black),
                                   textDirection: TextDirection.rtl,
                                 ),
@@ -131,7 +139,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             Padding(
                               padding: EdgeInsets.symmetric(horizontal: 8.0),
                               child: Text(
-                                'או הקלדה ידנית',
+                                'או הקלדת פריט חדש',
                                 style: TextStyle(
                                   color: Colors.black38,
                                   fontSize: 12,
@@ -215,7 +223,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             },
                           ),
                           const Text(
-                            'שמור מוצר זה לקטלוג (מועדפים)',
+                            'שמור מוצר זה למועדפים קבועים',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
@@ -405,7 +413,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'פריטים',
+                    'פריטים בהצעה',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
@@ -672,6 +680,57 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                     minimumSize: const Size.fromHeight(40),
                   ),
                 ),
+
+              // הצגת ניהול המועדפים ישירות בתחתית המסך כדי שיהיה קל למחוק פריטים ישנים מהקטלוג
+              if (widget.catalog.isNotEmpty) ...[
+                const SizedBox(height: 30),
+                const Text(
+                  'ניהול פריטים שמורים (מועדפים)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: widget.catalog.length,
+                  itemBuilder: (context, index) {
+                    final catItem = widget.catalog[index];
+                    return Card(
+                      color: Colors.white,
+                      elevation: 0,
+                      margin: const EdgeInsets.symmetric(vertical: 3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: const BorderSide(color: Colors.black12),
+                      ),
+                      child: ListTile(
+                        dense: true,
+                        title: Text(
+                          catItem['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text("₪${catItem['price']}"),
+                        trailing: IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.black38,
+                          ),
+                          onPressed: () {
+                            if (widget.onDeleteFromCatalog != null) {
+                              widget.onDeleteFromCatalog!(index);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ],
           ),
         ),

@@ -32,6 +32,52 @@ class _CustomersScreenState extends State<CustomersScreen> {
   final Color accentOrange = const Color(0xFFE88432); // כתום חמרה
   final Color cardColor = Colors.white;
 
+  void _confirmDeleteCustomer(int index, String customerName) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'מחיקת לקוח',
+              style: TextStyle(color: primaryDark, fontWeight: FontWeight.bold),
+            ),
+            content: Text(
+              'האם אתה בטוח שברצונך למחוק את "$customerName"? הפעולה אינה הפיכה.',
+              style: const TextStyle(color: Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'ביטול',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onCustomerDeleted(index);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('מחיקה'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _openAddCustomerDialog() {
     showDialog(
       context: context,
@@ -265,14 +311,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: TextButton.icon(
-                            onPressed: () => widget.onCustomerDeleted(index),
+                            onPressed: () => _confirmDeleteCustomer(
+                              index,
+                              customer['name'] ?? '',
+                            ),
                             icon: const Icon(
                               Icons.delete,
                               color: Colors.redAccent,
                               size: 16,
                             ),
                             label: const Text(
-                              'mחק לקוח',
+                              'מחק לקוח',
                               style: TextStyle(
                                 color: Colors.redAccent,
                                 fontSize: 12,

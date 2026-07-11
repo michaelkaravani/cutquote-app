@@ -3,7 +3,8 @@ import 'customers_screen.dart';
 import 'quote_builder_screen.dart';
 import 'profile_screen.dart';
 import 'package:cutquote/core/pdf_service.dart';
-import 'package:cutquote/core/storage_service.dart';
+import 'package:cutquote/core/firestore_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _globalCatalog = [];
   List<Map<String, dynamic>> _globalQuotes = [];
   bool _isLoading = true;
+  String _businessName = '';
+
+  // מזהה המשתמש המחובר - כל הנתונים מבודדים תחת ה-uid הזה ב-Firestore
+  String get _uid => FirebaseAuth.instance.currentUser!.uid;
 
   @override
   void initState() {
@@ -27,63 +32,267 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAllData() async {
-    final customers = await StorageService.loadCustomers();
-    final catalog = await StorageService.loadCatalog();
-    final quotes = await StorageService.loadQuotes();
+    try {
+      final customers = await FirestoreService.loadCustomers(_uid);
+      final catalog = await FirestoreService.loadCatalog(_uid);
+      final quotes = await FirestoreService.loadQuotes(_uid);
+      final profile = await FirestoreService.loadProfile(_uid);
 
-    if (!mounted) {
-      return;
+      if (!mounted) return;
+      setState(() {
+        _globalCustomers = customers;
+        _globalQuotes = quotes;
+        _globalCatalog = catalog; // פשוט טוען את מה שיש, בלי מוצרי ברירת מחדל!
+        _businessName = profile?['businessName'] ?? '';
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בטעינת הנתונים: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
-
-    setState(() {
-      _globalCustomers = customers;
-      _globalQuotes = quotes;
-
-      if (catalog.isEmpty) {
-        _globalCatalog = [
-          {'name': 'פלטת אלומיניום שחור מט', 'price': 150.0},
-          {'name': 'חיתוך לייזר מדוייק', 'price': 85.0},
-        ];
-        StorageService.saveCatalog(_globalCatalog);
-      } else {
-        _globalCatalog = catalog;
-      }
-      _isLoading = false;
-    });
   }
 
-  void _addCustomer(Map<String, String> newCustomer) {
-    setState(() {
-      _globalCustomers.add(newCustomer);
-    });
-    StorageService.saveCustomers(_globalCustomers);
+  Future<void> _addCustomer(Map<String, String> newCustomer) async {
+    try {
+      final id = await FirestoreService.addCustomer(_uid, newCustomer);
+      final withId = Map<String, String>.from(newCustomer)..['id'] = id;
+      setState(() {
+        _globalCustomers.add(withId);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בהוספת לקוח: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
-  void _deleteCustomer(int index) {
+  Future<void> _deleteCustomer(int index) async {
+    final customer = _globalCustomers[index];
+    final docId = customer['id'];
+
     setState(() {
       _globalCustomers.removeAt(index);
     });
-    StorageService.saveCustomers(_globalCustomers);
+
+    if (docId == null) return;
+    try {
+      await FirestoreService.deleteCustomer(_uid, docId);
+    } catch (e) {
+      if (!mounted) return;
+      // מחזירים את הלקוח לרשימה אם המחיקה בענן נכשלה
+      setState(() {
+        _globalCustomers.insert(index, customer);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה במחיקת לקוח: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
-  void _addCatalogItem(Map<String, dynamic> newItem) {
+  Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
     final exists = _globalCatalog.any(
       (item) =>
           item['name'].toString().trim() == newItem['name'].toString().trim(),
     );
-    if (!exists) {
+    if (exists) return;
+
+    try {
+      final id = await FirestoreService.addCatalogItem(_uid, newItem);
+      final withId = Map<String, dynamic>.from(newItem)..['id'] = id;
       setState(() {
-        _globalCatalog.add(newItem);
+        _globalCatalog.add(withId);
       });
-      StorageService.saveCatalog(_globalCatalog);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בהוספת פריט לקטלוג: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
-  void _saveQuote(Map<String, dynamic> newQuote) {
+  void _confirmDeleteCatalogItem(int index) {
+    final itemName = _globalCatalog[index]['name'] ?? '';
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'מחיקת פריט מהקטלוג',
+              style: TextStyle(
+                color: Color(0xFF513222),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'האם אתה בטוח שברצונך למחוק את "$itemName" מהקטלוג?',
+              style: const TextStyle(color: Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'ביטול',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _deleteCatalogItem(index);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('מחיקה'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteCatalogItem(int index) async {
+    final item = _globalCatalog[index];
+    final docId = item['id'];
+
     setState(() {
-      _globalQuotes.add(newQuote);
+      _globalCatalog.removeAt(index);
     });
-    StorageService.saveQuotes(_globalQuotes);
+
+    if (docId == null) return;
+    try {
+      await FirestoreService.deleteCatalogItem(_uid, docId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _globalCatalog.insert(index, item);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה במחיקת פריט מהקטלוג: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveQuote(Map<String, dynamic> newQuote) async {
+    try {
+      final id = await FirestoreService.addQuote(_uid, newQuote);
+      final withId = Map<String, dynamic>.from(newQuote)..['id'] = id;
+      setState(() {
+        _globalQuotes.add(withId);
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בשמירת הצעת המחיר: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteQuote(int index) async {
+    final quote = _globalQuotes[index];
+    final docId = quote['id'];
+
+    setState(() {
+      _globalQuotes.removeAt(index);
+    });
+
+    if (docId == null) return;
+    try {
+      await FirestoreService.deleteQuote(_uid, docId);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _globalQuotes.insert(index, quote);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה במחיקת הצעת המחיר: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _confirmDeleteQuote(int index) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text(
+              'מחיקת הצעת מחיר',
+              style: TextStyle(
+                color: Color(0xFF513222),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: const Text(
+              'האם אתה בטוח שברצונך למחוק את הצעת המחיר? הפעולה אינה הפיכה.',
+              style: TextStyle(color: Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'ביטול',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _deleteQuote(index);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('מחיקה'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _generateMonthlySummary(Map<String, String> customer) {
@@ -182,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => const ProfileScreen(),
                   ),
-                );
+                ).then((_) => _loadAllData());
               },
             ),
           ),
@@ -194,8 +403,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'שלום מיכאל,',
+              Text(
+                _businessName.isEmpty ? 'שלום,' : 'שלום $_businessName,',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -327,13 +536,27 @@ class _HomeScreenState extends State<HomeScreen> {
                               'לקוח: $customerName',
                               style: const TextStyle(color: Colors.black54),
                             ),
-                            trailing: Text(
-                              '₪ ${total.toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: customAccentOrange,
-                                fontSize: 16,
-                              ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '₪ ${total.toStringAsFixed(0)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: customAccentOrange,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 20,
+                                    color: Colors.black38,
+                                  ),
+                                  onPressed: () =>
+                                      _confirmDeleteQuote(reversedIndex),
+                                ),
+                              ],
                             ),
                           ),
                         );
@@ -405,6 +628,7 @@ class _HomeScreenState extends State<HomeScreen> {
         catalog: _globalCatalog,
         onAddToCatalog: _addCatalogItem,
         onSaveQuote: _saveQuote,
+        onDeleteFromCatalog: _confirmDeleteCatalogItem,
       ),
     ];
 
