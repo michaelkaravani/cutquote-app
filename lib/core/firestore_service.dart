@@ -86,6 +86,14 @@ class FirestoreService {
     return docRef.id;
   }
 
+  static Future<void> updateQuote(
+    String uid,
+    String docId,
+    Map<String, dynamic> data,
+  ) async {
+    await _quotes(uid).doc(docId).update(data);
+  }
+
   static Future<void> deleteQuote(String uid, String docId) async {
     await _quotes(uid).doc(docId).delete();
   }

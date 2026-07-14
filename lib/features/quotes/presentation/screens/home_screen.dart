@@ -104,6 +104,67 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _editQuote(Map<String, dynamic> quote) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuoteBuilderScreen(
+          customers: _globalCustomers,
+          catalog: _globalCatalog,
+          onAddToCatalog: _addCatalogItem,
+          onSaveQuote: _saveQuote,
+          onDeleteFromCatalog: _confirmDeleteCatalogItem,
+          initialQuote: quote,
+          onUpdateQuote: _updateQuote,
+        ),
+      ),
+    );
+  }
+
+  void _shareQuote(Map<String, dynamic> quote) {
+    PdfService.generateAndShareQuote(
+      customer: quote['customer'] as Map<String, String>?,
+      items: List<Map<String, dynamic>>.from(quote['items'] as List),
+      total: (quote['total'] as num).toDouble(),
+    );
+  }
+
+  Future<void> _updateQuote(Map<String, dynamic> updatedQuote) async {
+    final docId = updatedQuote['id'] as String?;
+    if (docId == null) return;
+
+    final dataToSave = Map<String, dynamic>.from(updatedQuote)..remove('id');
+
+    try {
+      await FirestoreService.updateQuote(_uid, docId, dataToSave);
+      final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
+      if (index != -1) {
+        setState(() {
+          _globalQuotes[index] = Map<String, dynamic>.from(updatedQuote);
+        });
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('הצעת המחיר עודכנה בהצלחה!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בעדכון הצעת המחיר: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteQuote(Map<String, dynamic> quote) async {
+    final docId = quote['id'] as String?;
+    final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
+    if (index == -1) return;
+    await _deleteQuoteByIndex(index);
+  }
+
   Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
     final exists = _globalCatalog.any(
       (item) =>
@@ -221,7 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _deleteQuote(int index) async {
+  Future<void> _deleteQuoteByIndex(int index) async {
     final quote = _globalQuotes[index];
     final docId = quote['id'];
 
@@ -280,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  _deleteQuote(index);
+                  _deleteQuoteByIndex(index);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
@@ -515,46 +576,96 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(12),
                             side: const BorderSide(color: Colors.black12),
                           ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: customAccentOrange.withValues(
-                                alpha: 0.15,
-                              ),
-                              child: const Icon(
-                                Icons.description_rounded,
-                                color: customAccentOrange,
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
                             ),
-                            title: Text(
-                              'הצעת מחיר #${reversedIndex + 1001}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: customPrimaryDark,
-                              ),
-                            ),
-                            subtitle: Text(
-                              'לקוח: $customerName',
-                              style: const TextStyle(color: Colors.black54),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  '₪ ${total.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: customAccentOrange,
-                                    fontSize: 16,
-                                  ),
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor:
+                                          customAccentOrange.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      child: const Icon(
+                                        Icons.description_rounded,
+                                        color: customAccentOrange,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'הצעת מחיר #${reversedIndex + 1001}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: customPrimaryDark,
+                                            ),
+                                          ),
+                                          Text(
+                                            'לקוח: $customerName',
+                                            style: const TextStyle(
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '₪ ${total.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: customAccentOrange,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 20,
-                                    color: Colors.black38,
-                                  ),
-                                  onPressed: () =>
-                                      _confirmDeleteQuote(reversedIndex),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(
+                                        Icons.edit,
+                                        size: 18,
+                                        color: Colors.blueGrey,
+                                      ),
+                                      onPressed: () => _editQuote(quote),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(
+                                        Icons.share,
+                                        size: 18,
+                                        color: Colors.teal,
+                                      ),
+                                      onPressed: () => _shareQuote(quote),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    IconButton(
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: const Icon(
+                                        Icons.delete_outline,
+                                        size: 20,
+                                        color: Colors.black38,
+                                      ),
+                                      onPressed: () =>
+                                          _confirmDeleteQuote(reversedIndex),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -622,6 +733,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onCustomerAdded: _addCustomer,
         onCustomerDeleted: _deleteCustomer,
         onGenerateSummary: _generateMonthlySummary,
+        onEditQuote: _editQuote,
+        onShareQuote: _shareQuote,
+        onDeleteQuote: _deleteQuote,
       ),
       QuoteBuilderScreen(
         customers: _globalCustomers,

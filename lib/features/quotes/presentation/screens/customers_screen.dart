@@ -6,6 +6,9 @@ class CustomersScreen extends StatefulWidget {
   final Function(Map<String, String>) onCustomerAdded;
   final Function(int) onCustomerDeleted;
   final Function(Map<String, String>) onGenerateSummary;
+  final Function(Map<String, dynamic>) onEditQuote;
+  final Function(Map<String, dynamic>) onShareQuote;
+  final Function(Map<String, dynamic>) onDeleteQuote;
 
   const CustomersScreen({
     super.key,
@@ -14,6 +17,9 @@ class CustomersScreen extends StatefulWidget {
     required this.onCustomerAdded,
     required this.onCustomerDeleted,
     required this.onGenerateSummary,
+    required this.onEditQuote,
+    required this.onShareQuote,
+    required this.onDeleteQuote,
   });
 
   @override
@@ -70,6 +76,55 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('מחיקה'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteQuote(Map<String, dynamic> quote) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'מחיקת הצעה',
+              style: TextStyle(
+                color: primaryDark,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              'האם אתה בטוח שברצונך למחוק הצעה זו מתאריך ${quote['date'] ?? '—'}?',
+              style: const TextStyle(color: Colors.black87),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'ביטול',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onDeleteQuote(quote);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('מחק'),
               ),
             ],
           ),
@@ -269,6 +324,128 @@ class _CustomersScreenState extends State<CustomersScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
+                        if (customerQuotes.isNotEmpty) ...[
+                          const Text(
+                            'הצעות מחיר',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            mainAxisSize: MainAxisSize.min,
+                            children: customerQuotes.map((quote) {
+                              final items =
+                                  quote['items'] as List<dynamic>? ?? [];
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFDF9F3),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: const Border(
+                                    right: BorderSide(
+                                      color: Color(0xFFE88432),
+                                      width: 4,
+                                    ),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'סה״כ: ₪${quote['total']}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: primaryDark,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        Text(
+                                          'תאריך: ${quote['date'] ?? '—'}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.black87,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          '${items.length} פריטים',
+                                          style: const TextStyle(
+                                            color: Colors.black54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
+                                              ),
+                                              color: Colors.blueGrey,
+                                              onPressed: () =>
+                                                  widget.onEditQuote(quote),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.share,
+                                                size: 18,
+                                              ),
+                                              color: Colors.teal,
+                                              onPressed: () =>
+                                                  widget.onShareQuote(quote),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            IconButton(
+                                              padding: EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                              ),
+                                              color: Colors.redAccent,
+                                              onPressed: () =>
+                                                  _confirmDeleteQuote(quote),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -310,22 +487,29 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         const Divider(height: 24, color: Colors.black12),
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: TextButton.icon(
+                          child: TextButton(
                             onPressed: () => _confirmDeleteCustomer(
                               index,
                               customer['name'] ?? '',
                             ),
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
-                              size: 16,
-                            ),
-                            label: const Text(
-                              'מחק לקוח',
-                              style: TextStyle(
-                                color: Colors.redAccent,
-                                fontSize: 12,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              textDirection: TextDirection.ltr,
+                              children: [
+                                const Icon(
+                                  Icons.delete,
+                                  color: Colors.redAccent,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'מחק לקוח',
+                                  style: TextStyle(
+                                    color: Colors.redAccent,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

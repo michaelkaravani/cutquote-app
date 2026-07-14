@@ -6,8 +6,9 @@ class QuoteBuilderScreen extends StatefulWidget {
   final List<Map<String, dynamic>> catalog;
   final Function(Map<String, dynamic>) onAddToCatalog;
   final Function(Map<String, dynamic>) onSaveQuote;
-  // הוספת פונקציה למחיקת פריט מהמועדפים/קטלוג כדי שתוכל לנהל אותם
   final Function(int)? onDeleteFromCatalog;
+  final Map<String, dynamic>? initialQuote;
+  final Function(Map<String, dynamic>)? onUpdateQuote;
 
   const QuoteBuilderScreen({
     super.key,
@@ -16,6 +17,8 @@ class QuoteBuilderScreen extends StatefulWidget {
     required this.onAddToCatalog,
     required this.onSaveQuote,
     this.onDeleteFromCatalog,
+    this.initialQuote,
+    this.onUpdateQuote,
   });
 
   @override
@@ -37,6 +40,23 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   final Color accentOrange = const Color(0xFFE88432);
   final Color cardColor = Colors.white;
   final Color buttonColor = const Color(0xFFA6968C);
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialQuote != null) {
+      final quote = widget.initialQuote!;
+      if (quote['customer'] != null) {
+        selectedCustomer =
+            Map<String, String>.from(quote['customer'] as Map);
+      }
+      if (quote['items'] != null) {
+        for (final e in quote['items'] as List) {
+          items.add(Map<String, dynamic>.from(e));
+        }
+      }
+    }
+  }
 
   double calculateTotal() {
     double total = 0;
@@ -299,8 +319,8 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
       child: Scaffold(
         backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text(
-            'הצעה חדשה',
+          title: Text(
+            widget.initialQuote != null ? 'עריכת הצעת מחיר' : 'הצעה חדשה',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -627,24 +647,43 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                         final String formattedDate =
                             "${now.day}/${now.month}/${now.year}";
 
-                        widget.onSaveQuote({
-                          'customer': selectedCustomer,
-                          'items': List<Map<String, dynamic>>.from(items),
-                          'total': calculateTotal(),
-                          'date': formattedDate,
-                        });
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('הצעת המחיר נשמרה בהיסטוריה בהצלחה!'),
-                          ),
-                        );
-
-                        setState(() {
-                          items.clear();
-                          selectedCustomer = null;
-                          notesController.clear();
-                        });
+                        if (widget.initialQuote != null &&
+                            widget.onUpdateQuote != null) {
+                          widget.onUpdateQuote!({
+                            'customer': selectedCustomer,
+                            'items': List<Map<String, dynamic>>.from(items),
+                            'total': calculateTotal(),
+                            'date': widget.initialQuote!['date'] ?? formattedDate,
+                            'id': widget.initialQuote!['id'],
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'הצעת המחיר עודכנה בהצלחה!',
+                              ),
+                            ),
+                          );
+                          Navigator.pop(context);
+                        } else {
+                          widget.onSaveQuote({
+                            'customer': selectedCustomer,
+                            'items': List<Map<String, dynamic>>.from(items),
+                            'total': calculateTotal(),
+                            'date': formattedDate,
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'הצעת המחיר נשמרה בהיסטוריה בהצלחה!',
+                              ),
+                            ),
+                          );
+                          setState(() {
+                            items.clear();
+                            selectedCustomer = null;
+                            notesController.clear();
+                          });
+                        }
                       },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
