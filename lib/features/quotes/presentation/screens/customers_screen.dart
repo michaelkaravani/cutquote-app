@@ -1,4 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cutquote/core/pdf_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   final List<Map<String, String>> customers;
@@ -37,6 +41,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
   final Color primaryDark = const Color(0xFF513222); // חום שוקולד כהה
   final Color accentOrange = const Color(0xFFE88432); // כתום חמרה
   final Color cardColor = Colors.white;
+
+  final Set<String> _selectedQuoteIds = {};
+  bool _isSelectionMode = false;
 
   void _confirmDeleteCustomer(int index, String customerName) {
     showDialog(
@@ -131,6 +138,73 @@ class _CustomersScreenState extends State<CustomersScreen> {
         );
       },
     );
+  }
+
+  void _toggleSelection(String? quoteId) {
+    if (quoteId == null) return;
+    setState(() {
+      if (_selectedQuoteIds.contains(quoteId)) {
+        _selectedQuoteIds.remove(quoteId);
+        if (_selectedQuoteIds.isEmpty) _isSelectionMode = false;
+      } else {
+        _selectedQuoteIds.add(quoteId);
+        _isSelectionMode = true;
+      }
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectedQuoteIds.clear();
+      _isSelectionMode = false;
+    });
+  }
+
+  Future<void> _shareSelectedQuotes() async {
+    final selected = widget.quotes
+        .where((q) => _selectedQuoteIds.contains(q['id']))
+        .toList();
+    if (selected.isEmpty) return;
+
+    try {
+      final files = <XFile>[];
+      final tempDir = Directory.systemTemp;
+
+      for (int i = 0; i < selected.length; i++) {
+        final q = selected[i];
+        final bytes = await PdfService.generateQuotePdfBytes(
+          customer: q['customer'] != null
+              ? Map<String, String>.from(q['customer'] as Map)
+              : null,
+          items: List<Map<String, dynamic>>.from(q['items'] ?? []),
+          total: (q['total'] as num?)?.toDouble() ?? 0.0,
+        );
+
+        final title = q['title']?.toString() ?? 'הצעת מחיר';
+        final safeName = title.replaceAll(RegExp(r'[^\w\s\-]'), '').trim();
+        final file = File('${tempDir.path}/${safeName}_$i.pdf');
+        await file.writeAsBytes(bytes);
+        files.add(XFile(file.path));
+      }
+
+      await Share.shareXFiles(files);
+
+      for (final f in files) {
+        try {
+          await File(f.path).delete();
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בשיתוף ההצעות: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+
+    _exitSelectionMode();
   }
 
   void _openAddCustomerDialog() {
@@ -255,9 +329,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Scaffold(
         backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text(
-            'ניהול לקוחות',
-            style: TextStyle(
+          title: Text(
+            _isSelectionMode
+                ? '${_selectedQuoteIds.length} נבחרו'
+                : 'ניהול לקוחות',
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 18,
@@ -266,6 +342,19 @@ class _CustomersScreenState extends State<CustomersScreen> {
           centerTitle: true,
           backgroundColor: primaryDark,
           elevation: 0,
+          actions: [
+            if (_isSelectionMode)
+              TextButton(
+                onPressed: _exitSelectionMode,
+                child: const Text(
+                  'ביטול',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
         ),
         body: widget.customers.isEmpty
             ? const Center(
@@ -340,7 +429,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             children: customerQuotes.map((quote) {
                               final items =
                                   quote['items'] as List<dynamic>? ?? [];
-                              return Container(
+                              return GestureDetector(
+                                onLongPress: () =>
+                                    _toggleSelection(quote['id']),
+                                onTap: _isSelectionMode
+                                    ? () => _toggleSelection(quote['id'])
+                                    : null,
+                                child: Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 12,
@@ -360,6 +455,36 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
+                                    Row(
+                                      children: [
+                                        if (_isSelectionMode)
+                                          Checkbox(
+                                            value: _selectedQuoteIds.contains(
+                                              quote['id'],
+                                            ),
+                                            onChanged: (_) =>
+                                                _toggleSelection(quote['id']),
+                                            activeColor: accentOrange,
+                                            materialTapTargetSize:
+                                                MaterialTapTargetSize
+                                                    .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                        Expanded(
+                                          child: Text(
+                                            quote['title']?.toString() ??
+                                                'הצעת מחיר',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: primaryDark,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -394,54 +519,56 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                             fontSize: 12,
                                           ),
                                         ),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.edit,
-                                                size: 18,
+                                        if (!_isSelectionMode)
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.edit,
+                                                  size: 18,
+                                                ),
+                                                color: Colors.blueGrey,
+                                                onPressed: () =>
+                                                    widget.onEditQuote(quote),
                                               ),
-                                              color: Colors.blueGrey,
-                                              onPressed: () =>
-                                                  widget.onEditQuote(quote),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.share,
-                                                size: 18,
+                                              const SizedBox(width: 4),
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.share,
+                                                  size: 18,
+                                                ),
+                                                color: Colors.teal,
+                                                onPressed: () =>
+                                                    widget.onShareQuote(quote),
                                               ),
-                                              color: Colors.teal,
-                                              onPressed: () =>
-                                                  widget.onShareQuote(quote),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            IconButton(
-                                              padding: EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                                size: 18,
+                                              const SizedBox(width: 4),
+                                              IconButton(
+                                                padding: EdgeInsets.zero,
+                                                constraints:
+                                                    const BoxConstraints(),
+                                                icon: const Icon(
+                                                  Icons.delete_outline,
+                                                  size: 18,
+                                                ),
+                                                color: Colors.redAccent,
+                                                onPressed: () =>
+                                                    _confirmDeleteQuote(quote),
                                               ),
-                                              color: Colors.redAccent,
-                                              onPressed: () =>
-                                                  _confirmDeleteQuote(quote),
-                                            ),
-                                          ],
-                                        ),
+                                            ],
+                                          ),
                                       ],
                                     ),
                                   ],
                                 ),
-                              );
+                              ),
+                            );
                             }).toList(),
                           ),
                           const SizedBox(height: 8),
@@ -518,12 +645,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   );
                 },
               ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: _openAddCustomerDialog,
-          backgroundColor: accentOrange, // שינוי לכתום חמרה תואם
-          elevation: 2,
-          child: const Icon(Icons.add, color: Colors.white),
-        ),
+        floatingActionButton: _isSelectionMode
+            ? (_selectedQuoteIds.isNotEmpty
+                ? FloatingActionButton.extended(
+                    onPressed: () { _shareSelectedQuotes(); },
+                    backgroundColor: accentOrange,
+                    icon: const Icon(Icons.share, color: Colors.white),
+                    label: Text(
+                      'שתף ${_selectedQuoteIds.length} הצעות',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  )
+                : const SizedBox.shrink())
+            : FloatingActionButton(
+                onPressed: _openAddCustomerDialog,
+                backgroundColor: accentOrange,
+                elevation: 2,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
       ),
     );
   }

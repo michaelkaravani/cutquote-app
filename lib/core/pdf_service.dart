@@ -1,16 +1,17 @@
+import 'dart:typed_data';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 class PdfService {
-  static Future<void> generateAndShareQuote({
+  static Future<Uint8List> generateQuotePdfBytes({
     required Map<String, String>? customer,
     required List<Map<String, dynamic>> items,
     required double total,
   }) async {
     final pdf = pw.Document();
 
-    // טעינת פונט שתומך בעברית בצורה מלאה מהמערכת
     final font = await PdfGoogleFonts.assistantRegular();
     final boldFont = await PdfGoogleFonts.assistantBold();
 
@@ -20,21 +21,15 @@ class PdfService {
         theme: pw.ThemeData.withFont(base: font, bold: boldFont),
         build: (pw.Context context) {
           return pw.Directionality(
-            textDirection: pw.TextDirection.rtl, // הופך את כל הדף לעברית
+            textDirection: pw.TextDirection.rtl,
             child: pw.Column(
-              crossAxisAlignment:
-                  pw.CrossAxisAlignment.start, // 🔥 תוקן: נוספו נקודתיים
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // כותרת העסק שלך
                 pw.Row(
-                  mainAxisAlignment: pw
-                      .MainAxisAlignment
-                      .spaceBetween, // 🔥 תוקן: נוספו נקודתיים
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Column(
-                      crossAxisAlignment: pw
-                          .CrossAxisAlignment
-                          .start, // 🔥 תוקן: נוספו נקודתיים
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
                         pw.Text(
                           'מיכאל פרסיז\'ן ארט',
@@ -66,7 +61,6 @@ class PdfService {
                 pw.Divider(thickness: 2, color: PdfColors.blue900),
                 pw.SizedBox(height: 20),
 
-                // פרטי הלקוח המשויך
                 pw.Container(
                   padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
@@ -74,8 +68,7 @@ class PdfService {
                     borderRadius: pw.BorderRadius.circular(8),
                   ),
                   child: pw.Column(
-                    crossAxisAlignment:
-                        pw.CrossAxisAlignment.start, // 🔥 תוקן: נוספו נקודתיים
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
                         'לכבוד:',
@@ -112,20 +105,18 @@ class PdfService {
                 ),
                 pw.SizedBox(height: 30),
 
-                // טבלת הפריטים
                 pw.Table(
                   border: pw.TableBorder.all(
                     color: PdfColors.grey300,
                     width: 0.5,
                   ),
                   columnWidths: {
-                    0: const pw.FlexColumnWidth(4), // שם הפריט
-                    1: const pw.FlexColumnWidth(1), // כמות
-                    2: const pw.FlexColumnWidth(1.5), // מחיר יחידה
-                    3: const pw.FlexColumnWidth(1.5), // סה"כ שורה
+                    0: const pw.FlexColumnWidth(4),
+                    1: const pw.FlexColumnWidth(1),
+                    2: const pw.FlexColumnWidth(1.5),
+                    3: const pw.FlexColumnWidth(1.5),
                   },
                   children: [
-                    // שורת כותרת הטבלה
                     pw.TableRow(
                       decoration: const pw.BoxDecoration(
                         color: PdfColors.blue100,
@@ -164,7 +155,6 @@ class PdfService {
                         ),
                       ],
                     ),
-                    // שורות הנתונים
                     ...items.map((item) {
                       final double itemTotal = item['price'] * item['quantity'];
                       return pw.TableRow(
@@ -196,12 +186,11 @@ class PdfService {
                           ),
                         ],
                       );
-                    }), // 🔥 תוקן: הורדנו את ה-toList() המיותר שהציק באזהרות
+                    }),
                   ],
                 ),
                 pw.SizedBox(height: 30),
 
-                // סה"כ סופי לתשלום לתחתית הדף
                 pw.Align(
                   alignment: pw.Alignment.centerLeft,
                   child: pw.Container(
@@ -241,10 +230,20 @@ class PdfService {
       ),
     );
 
-    // פתיחת חלונית שיתוף והדפסה של מערכת ההפעלה (וואטסאפ, מייל וכד')
-    await Printing.sharePdf(
-      bytes: await pdf.save(),
-      filename: 'quote_${customer?['name'] ?? 'general'}.pdf',
+    return pdf.save();
+  }
+
+  static Future<void> generateAndShareQuote({
+    required Map<String, String>? customer,
+    required List<Map<String, dynamic>> items,
+    required double total,
+    required String filename,
+  }) async {
+    final bytes = await generateQuotePdfBytes(
+      customer: customer,
+      items: items,
+      total: total,
     );
+    await Printing.sharePdf(bytes: bytes, filename: filename);
   }
 }

@@ -29,11 +29,13 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   wakelock_plus: ^1.2.8
+  package_info_plus: ^8.0.0
   flutter:
     sdk: flutter
   flutter_launcher_icons: "^0.13.1"
   pdf: ^3.11.1
   printing: ^5.13.2
+  share_plus: ^10.0.0
   shared_preferences: ^2.3.5
 
   # The following adds the Cupertino Icons font to your application.

@@ -30,6 +30,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
+  final TextEditingController titleController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
   bool saveToCatalog = false;
@@ -55,6 +56,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
           items.add(Map<String, dynamic>.from(e));
         }
       }
+      titleController.text = quote['title']?.toString() ?? '';
     }
   }
 
@@ -351,6 +353,27 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 4),
+              TextField(
+                controller: titleController,
+                style: const TextStyle(color: Colors.black87),
+                decoration: InputDecoration(
+                  labelText: 'נושא/כותרת ההצעה',
+                  hintText: 'לדוגמה: חיתוך שלטים, כרטיסי אלומיניום',
+                  hintStyle: const TextStyle(color: Colors.black38),
+                  filled: true,
+                  fillColor: cardColor,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.black12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: accentOrange),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
               const Text(
                 'לקוח',
                 style: TextStyle(
@@ -654,6 +677,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             'items': List<Map<String, dynamic>>.from(items),
                             'total': calculateTotal(),
                             'date': widget.initialQuote!['date'] ?? formattedDate,
+                            'title': titleController.text.trim(),
                             'id': widget.initialQuote!['id'],
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -670,6 +694,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             'items': List<Map<String, dynamic>>.from(items),
                             'total': calculateTotal(),
                             'date': formattedDate,
+                            'title': titleController.text.trim(),
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -681,6 +706,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           setState(() {
                             items.clear();
                             selectedCustomer = null;
+                            titleController.clear();
                             notesController.clear();
                           });
                         }
@@ -710,6 +736,8 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       customer: selectedCustomer,
                       items: items,
                       total: calculateTotal(),
+                      filename:
+                          'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
                     );
                   },
                   icon: const Icon(Icons.share, size: 18),

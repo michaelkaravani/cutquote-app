@@ -122,10 +122,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _shareQuote(Map<String, dynamic> quote) {
+    final customer = Map<String, String>.from(quote['customer'] ?? {});
     PdfService.generateAndShareQuote(
-      customer: Map<String, String>.from(quote['customer'] ?? {}),
+      customer: customer,
       items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
       total: (quote['total'] as num?)?.toDouble() ?? 0.0,
+      filename: 'quote_${customer['name'] ?? 'general'}.pdf',
     );
   }
 
@@ -412,6 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
       customer: customer,
       items: finalItems,
       total: finalTotal,
+      filename: 'quote_${customer['name'] ?? 'general'}.pdf',
     );
   }
 
@@ -603,7 +606,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            'הצעת מחיר #${reversedIndex + 1001}',
+                                            '${quote['title'] ?? 'הצעת מחיר'} #${reversedIndex + 1001}',
                                             style: const TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: customPrimaryDark,
