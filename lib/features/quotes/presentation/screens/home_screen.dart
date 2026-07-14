@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 2;
 
   List<Map<String, String>> _globalCustomers = [];
   List<Map<String, dynamic>> _globalCatalog = [];
@@ -123,9 +123,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _shareQuote(Map<String, dynamic> quote) {
     PdfService.generateAndShareQuote(
-      customer: quote['customer'] as Map<String, String>?,
-      items: List<Map<String, dynamic>>.from(quote['items'] as List),
-      total: (quote['total'] as num).toDouble(),
+      customer: Map<String, String>.from(quote['customer'] ?? {}),
+      items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
+      total: (quote['total'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -502,7 +502,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: customAccentOrange,
                     onTap: () {
                       setState(() {
-                        _selectedIndex = 2;
+                        _selectedIndex = 1;
                       });
                     },
                   ),
@@ -512,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: customPrimaryDark,
                     onTap: () {
                       setState(() {
-                        _selectedIndex = 1;
+                        _selectedIndex = 0;
                       });
                     },
                   ),
@@ -726,7 +726,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final List<Widget> screens = [
-      _buildDashboardView(),
       CustomersScreen(
         customers: _globalCustomers,
         quotes: _globalQuotes,
@@ -744,6 +743,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onSaveQuote: _saveQuote,
         onDeleteFromCatalog: _confirmDeleteCatalogItem,
       ),
+      _buildDashboardView(),
     ];
 
     // כאן נפתרת שגיאת הליקולזציה: ה-Scaffold מוחזר ישירות, וה-Directionality עוטף אך ורק את ה-body הפנימי!
@@ -763,14 +763,14 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'ראשי',
-          ),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'לקוחות'),
           BottomNavigationBarItem(
             icon: Icon(Icons.description),
             label: 'הצעת מחיר',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_rounded),
+            label: 'ראשי',
           ),
         ],
       ),
