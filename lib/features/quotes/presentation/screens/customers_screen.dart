@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/quote_status.dart';
 
 class CustomersScreen extends StatefulWidget {
+  final String businessName;
   final List<Map<String, String>> customers;
   final List<Map<String, dynamic>> quotes;
   final Function(Map<String, String>) onCustomerAdded;
@@ -18,6 +20,7 @@ class CustomersScreen extends StatefulWidget {
 
   const CustomersScreen({
     super.key,
+    required this.businessName,
     required this.customers,
     required this.quotes,
     required this.onCustomerAdded,
@@ -293,6 +296,26 @@ class _CustomersScreenState extends State<CustomersScreen> {
         .toList();
     if (selected.isEmpty) return;
 
+    final totalAmount = selected.fold<double>(
+      0,
+      (sum, q) => sum + ((q['total'] as num?)?.toDouble() ?? 0),
+    );
+    final senderName =
+        widget.businessName.isNotEmpty ? widget.businessName : 'העסק';
+    final message =
+        'שיתוף ${selected.length} הצעות מחיר מסך כולל של ₪${totalAmount.toStringAsFixed(0)}. תודה, $senderName.';
+
+    await Clipboard.setData(ClipboardData(text: message));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
     try {
       final files = <XFile>[];
       final tempDir = Directory.systemTemp;
@@ -309,7 +332,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
         );
 
         final title = q['title']?.toString() ?? 'הצעת מחיר';
-        final safeName = title.replaceAll(RegExp(r'[^\w\s\-]'), '').trim();
+        final safeName = title.replaceAll(
+          RegExp(r'[^\u0590-\u05FF\w\s\-]'),
+          '',
+        ).trim();
         final file = File('${tempDir.path}/${safeName}_$i.pdf');
         await file.writeAsBytes(bytes);
         files.add(XFile(file.path));
@@ -318,9 +344,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
       await Share.shareXFiles(files);
 
       for (final f in files) {
-        try {
-          await File(f.path).delete();
-        } catch (_) {}
+        final file = File(f.path);
+        Future.delayed(const Duration(seconds: 10), () async {
+          try {
+            if (await file.exists()) await file.delete();
+          } catch (_) {}
+        });
       }
     } catch (e) {
       if (!mounted) return;

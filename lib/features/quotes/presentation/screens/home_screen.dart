@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'customers_screen.dart';
 import 'quote_builder_screen.dart';
 import 'profile_screen.dart';
@@ -152,7 +153,34 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _shareQuote(Map<String, dynamic> quote) {
+  String _generateShareMessage(Map<String, dynamic> quote, int index) {
+    final customerName = quote['customer'] != null
+        ? (quote['customer']['name']?.toString() ?? 'לקוח')
+        : 'לקוח';
+    final quoteNumber = index + 1001;
+    final quoteTitle = quote['title']?.toString() ?? 'הצעת מחיר';
+    final total = (quote['total'] as num?)?.toDouble() ?? 0.0;
+    final totalFormatted = total.toStringAsFixed(0);
+    final senderName = _businessName.isNotEmpty ? _businessName : 'העסק';
+
+    return 'היי $customerName 👋 מצורפת הצעת מחיר מס\' $quoteNumber עבור \'$quoteTitle\' על סך $totalFormatted ₪. נשמח לאישורך כדי שנוכל להתקדם לייצור! תודה, $senderName.';
+  }
+
+  Future<void> _shareQuote(Map<String, dynamic> quote) async {
+    final index = _globalQuotes.indexOf(quote);
+    final message = _generateShareMessage(quote, index);
+
+    await Clipboard.setData(ClipboardData(text: message));
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+
     final customer = Map<String, String>.from(quote['customer'] ?? {});
     PdfService.generateAndShareQuote(
       customer: customer,
@@ -1171,6 +1199,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final List<Widget> screens = [
       CustomersScreen(
+        businessName: _businessName,
         customers: _globalCustomers,
         quotes: _globalQuotes,
         onCustomerAdded: _addCustomer,
