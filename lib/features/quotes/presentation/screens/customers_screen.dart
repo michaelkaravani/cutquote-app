@@ -178,6 +178,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
               : null,
           items: List<Map<String, dynamic>>.from(q['items'] ?? []),
           total: (q['total'] as num?)?.toDouble() ?? 0.0,
+          notes: q['notes'] as String?,
         );
 
         final title = q['title']?.toString() ?? 'הצעת מחיר';

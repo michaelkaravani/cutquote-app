@@ -9,6 +9,7 @@ class PdfService {
     required Map<String, String>? customer,
     required List<Map<String, dynamic>> items,
     required double total,
+    String? notes,
   }) async {
     final pdf = pw.Document();
 
@@ -223,6 +224,76 @@ class PdfService {
                     ),
                   ),
                 ),
+                if (notes != null && notes.isNotEmpty) ...[
+                  pw.SizedBox(height: 15),
+                  pw.Directionality(
+                    textDirection: pw.TextDirection.rtl,
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(10),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(
+                          color: PdfColors.grey300,
+                          width: 1,
+                        ),
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'הערות:',
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(notes),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                pw.SizedBox(height: 35),
+                pw.Directionality(
+                  textDirection: pw.TextDirection.rtl,
+                  child: pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+                    children: [
+                      pw.Column(
+                        children: [
+                          pw.Container(
+                            width: 120,
+                            child: pw.Divider(
+                              thickness: 1,
+                              color: PdfColors.grey400,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            'חתימת בית העסק',
+                            style: const pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                      pw.Column(
+                        children: [
+                          pw.Container(
+                            width: 120,
+                            child: pw.Divider(
+                              thickness: 1,
+                              color: PdfColors.grey400,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            'חתימת הלקוח לאישור',
+                            style: const pw.TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           );
@@ -238,11 +309,13 @@ class PdfService {
     required List<Map<String, dynamic>> items,
     required double total,
     required String filename,
+    String? notes,
   }) async {
     final bytes = await generateQuotePdfBytes(
       customer: customer,
       items: items,
       total: total,
+      notes: notes,
     );
     await Printing.sharePdf(bytes: bytes, filename: filename);
   }

@@ -128,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
       items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
       total: (quote['total'] as num?)?.toDouble() ?? 0.0,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
+      notes: quote['notes'] as String?,
     );
   }
 
@@ -415,6 +416,7 @@ class _HomeScreenState extends State<HomeScreen> {
       items: finalItems,
       total: finalTotal,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
+      notes: null,
     );
   }
 

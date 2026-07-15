@@ -678,6 +678,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             'total': calculateTotal(),
                             'date': widget.initialQuote!['date'] ?? formattedDate,
                             'title': titleController.text.trim(),
+                            'notes': notesController.text.trim(),
                             'id': widget.initialQuote!['id'],
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -695,6 +696,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             'total': calculateTotal(),
                             'date': formattedDate,
                             'title': titleController.text.trim(),
+                            'notes': notesController.text.trim(),
                           });
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -738,6 +740,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       total: calculateTotal(),
                       filename:
                           'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
+                      notes: notesController.text.trim(),
                     );
                   },
                   icon: const Icon(Icons.share, size: 18),
