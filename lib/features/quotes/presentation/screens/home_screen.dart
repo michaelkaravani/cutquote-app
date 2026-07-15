@@ -5,6 +5,7 @@ import 'profile_screen.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/quote_status.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -22,6 +23,35 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _globalQuotes = [];
   bool _isLoading = true;
   String _businessName = '';
+
+  String? _selectedCustomerFilter;
+  bool _showOnlyPending = false;
+
+  List<Map<String, dynamic>> get _filteredQuotes {
+    var result = _globalQuotes.toList()
+      ..sort((a, b) {
+        final aDate = a['createdAt'] as Timestamp?;
+        final bDate = b['createdAt'] as Timestamp?;
+        if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+        return 0;
+      });
+
+    if (_showOnlyPending) {
+      result = result
+          .where(
+              (q) => (q['status'] as String?) != QuoteStatus.paid.dbValue)
+          .toList();
+    }
+
+    if (_selectedCustomerFilter != null) {
+      result = result
+          .where((q) =>
+              q['customer']?['name']?.toString() == _selectedCustomerFilter)
+          .toList();
+    }
+
+    return result;
+  }
 
   // מזהה המשתמש המחובר - כל הנתונים מבודדים תחת ה-uid הזה ב-Firestore
   String get _uid => FirebaseAuth.instance.currentUser!.uid;
@@ -505,10 +535,202 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showCustomerFilterSheet() {
+    final uniqueNames = _globalQuotes
+        .where((q) =>
+            q['customer'] != null &&
+            q['customer']['name'] != null &&
+            q['customer']['name'].toString().trim().isNotEmpty)
+        .map((q) => q['customer']['name'].toString())
+        .toSet()
+        .toList()
+      ..sort();
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'בחר לקוח לסינון',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Color(0xFF513222),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: uniqueNames.length,
+                  itemBuilder: (context, i) => ListTile(
+                    title: Text(uniqueNames[i]),
+                    trailing: _selectedCustomerFilter == uniqueNames[i]
+                        ? const Icon(
+                            Icons.check,
+                            color: Color(0xFF513222),
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        _selectedCustomerFilter = uniqueNames[i];
+                        _showOnlyPending = false;
+                      });
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDashboardView() {
     // צבעי ערכת הנושא החומה-שמנת החדשה שלך
     const customPrimaryDark = Color(0xFF513222);
     const customAccentOrange = Color(0xFFE88432);
+
+    Widget kpiCard(
+      IconData icon,
+      String value,
+      String label, {
+      VoidCallback? onTap,
+      bool isActive = false,
+    }) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isActive
+                ? customAccentOrange.withValues(alpha: 0.08)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: isActive
+                ? Border.all(color: customAccentOrange, width: 1.5)
+                : null,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: customAccentOrange, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: customPrimaryDark,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    String formatCurrency(double amount) {
+      final whole = amount.floor();
+      final str = whole.toString();
+      final buffer = StringBuffer();
+      int count = 0;
+      for (int i = str.length - 1; i >= 0; i--) {
+        if (count > 0 && count % 3 == 0) buffer.write(',');
+        buffer.write(str[i]);
+        count++;
+      }
+      return '₪${buffer.toString().split('').reversed.join()}';
+    }
+
+    Widget buildKpiRow() {
+      final totalQuotes = _globalQuotes.length;
+
+      final uniqueCustomers = _globalQuotes
+          .where((q) =>
+              q['customer'] != null &&
+              q['customer']['name'] != null &&
+              q['customer']['name'].toString().trim().isNotEmpty)
+          .map((q) => q['customer']['name'].toString())
+          .toSet()
+          .length;
+
+      double pendingTotal = 0;
+      for (final q in _globalQuotes) {
+        final status = q['status'] as String?;
+        if (status != QuoteStatus.paid.dbValue) {
+          pendingTotal += (q['total'] as num?)?.toDouble() ?? 0;
+        }
+      }
+
+      final formattedPending = formatCurrency(pendingTotal);
+
+      return Row(
+        children: [
+          Expanded(
+            child: kpiCard(
+              Icons.description_outlined,
+              '$totalQuotes',
+              'הצעות',
+              onTap: () => setState(() {
+                _selectedCustomerFilter = null;
+                _showOnlyPending = false;
+              }),
+              isActive: _selectedCustomerFilter == null && !_showOnlyPending,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: kpiCard(
+              Icons.people_outline,
+              '$uniqueCustomers',
+              'לקוחות',
+              onTap: _showCustomerFilterSheet,
+              isActive: _selectedCustomerFilter != null,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: kpiCard(
+              Icons.trending_up,
+              formattedPending,
+              'סה"כ פתוח',
+              onTap: () => setState(() {
+                _showOnlyPending = !_showOnlyPending;
+                _selectedCustomerFilter = null;
+              }),
+              isActive: _showOnlyPending,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF7F0),
@@ -608,16 +830,44 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
 
-              const Text(
-                'הצעות מחיר אחרונות',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: customPrimaryDark,
+              buildKpiRow(),
+              const SizedBox(height: 24),
+
+              Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'הצעות מחיר אחרונות',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: customPrimaryDark,
+                      ),
+                    ),
+                    if (_selectedCustomerFilter != null ||
+                        _showOnlyPending)
+                      TextButton.icon(
+                        onPressed: () => setState(() {
+                          _selectedCustomerFilter = null;
+                          _showOnlyPending = false;
+                        }),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Color(0xFF513222),
+                        ),
+                        label: const Text(
+                          'נקה סינון',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF513222),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ),
               const SizedBox(height: 12),
               _globalQuotes.isEmpty
                   ? Card(
@@ -637,169 +887,236 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _globalQuotes.length > 5
-                          ? 5
-                          : _globalQuotes.length,
-                      itemBuilder: (context, index) {
-                        final reversedIndex = _globalQuotes.length - 1 - index;
-                        final quote = _globalQuotes[reversedIndex];
-                        final customerName = quote['customer'] != null
-                            ? quote['customer']['name']
-                            : 'לקוח כללי';
-
-                        double total = 0;
-                        if (quote['items'] != null) {
-                          for (var item in quote['items']) {
-                            total +=
-                                (item['price'] ?? 0) * (item['quantity'] ?? 1);
-                          }
-                        }
-
-                        return Card(
+                  : _filteredQuotes.isEmpty
+                      ? Card(
                           color: Colors.white,
                           elevation: 0,
-                          margin: const EdgeInsets.only(bottom: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: const BorderSide(color: Colors.black12),
                           ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                          child: const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                              child: Text(
+                                'לא נמצאו הצעות מחיר העונות לסינון זה',
+                                style: TextStyle(color: Colors.black54),
+                              ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor:
-                                          customAccentOrange.withValues(
-                                        alpha: 0.15,
-                                      ),
-                                      child: const Icon(
-                                        Icons.description_rounded,
-                                        color: customAccentOrange,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${quote['title'] ?? 'הצעת מחיר'} #${reversedIndex + 1001}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: customPrimaryDark,
-                                            ),
-                                          ),
-                                          Text(
-                                            'לקוח: $customerName',
-                                            style: const TextStyle(
-                                              color: Colors.black54,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '₪ ${total.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: customAccentOrange,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
+                          ),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: _filteredQuotes.length > 5
+                              ? 5
+                              : _filteredQuotes.length,
+                          itemBuilder: (context, index) {
+                            final quote = _filteredQuotes[index];
+                            final customerName =
+                                quote['customer'] != null
+                                    ? quote['customer']['name']
+                                    : 'לקוח כללי';
+
+                            double total = 0;
+                            if (quote['items'] != null) {
+                              for (var item in quote['items']) {
+                                total += (item['price'] ?? 0) *
+                                    (item['quantity'] ?? 1);
+                              }
+                            }
+
+                            return Card(
+                              color: Colors.white,
+                              elevation: 0,
+                              margin:
+                                  const EdgeInsets.only(bottom: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius:
+                                    BorderRadius.circular(12),
+                                side: const BorderSide(
+                                    color: Colors.black12),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
                                 ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                   children: [
-                                    GestureDetector(
-                                      onTap: () =>
-                                          _showStatusPicker(context, quote),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: QuoteStatus.fromString(
-                                            quote['status'] as String?,
-                                          ).displayColor.withValues(alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                        child: Text(
-                                          QuoteStatus.fromString(
-                                            quote['status'] as String?,
-                                          ).label,
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            color: QuoteStatus.fromString(
-                                              quote['status'] as String?,
-                                            ).displayColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
                                     Row(
-                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 18,
-                                            color: Colors.blueGrey,
+                                        CircleAvatar(
+                                          backgroundColor:
+                                              customAccentOrange
+                                                  .withValues(
+                                                alpha: 0.15,
+                                              ),
+                                          child: const Icon(
+                                            Icons
+                                                .description_rounded,
+                                            color:
+                                                customAccentOrange,
                                           ),
-                                          onPressed: () => _editQuote(quote),
                                         ),
-                                        const SizedBox(width: 4),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: const Icon(
-                                            Icons.share,
-                                            size: 18,
-                                            color: Colors.teal,
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment
+                                                    .start,
+                                            children: [
+                                              Text(
+                                                '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
+                                                style: const TextStyle(
+                                                  fontWeight:
+                                                      FontWeight.bold,
+                                                  color:
+                                                      customPrimaryDark,
+                                                ),
+                                              ),
+                                              Text(
+                                                'לקוח: $customerName',
+                                                style: const TextStyle(
+                                                  color:
+                                                      Colors.black54,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          onPressed: () =>
-                                              _shareQuote(quote),
                                         ),
-                                        const SizedBox(width: 4),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            size: 20,
-                                            color: Colors.black38,
+                                        Text(
+                                          '₪ ${total.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            fontWeight:
+                                                FontWeight.bold,
+                                            color:
+                                                customAccentOrange,
+                                            fontSize: 16,
                                           ),
-                                          onPressed: () =>
-                                              _confirmDeleteQuote(
-                                                  reversedIndex),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment
+                                              .spaceBetween,
+                                      children: [
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _showStatusPicker(
+                                                  context, quote),
+                                          child: Container(
+                                            padding: const EdgeInsets
+                                                .symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration:
+                                                BoxDecoration(
+                                              color: QuoteStatus
+                                                  .fromString(
+                                                quote['status']
+                                                    as String?,
+                                              )
+                                                  .displayColor
+                                                  .withValues(
+                                                      alpha: 0.15),
+                                              borderRadius:
+                                                  BorderRadius
+                                                      .circular(12),
+                                            ),
+                                            child: Text(
+                                              QuoteStatus.fromString(
+                                                quote['status']
+                                                    as String?,
+                                              ).label,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight:
+                                                    FontWeight.bold,
+                                                color: QuoteStatus
+                                                    .fromString(
+                                                  quote['status']
+                                                      as String?,
+                                                ).displayColor,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        Row(
+                                          mainAxisSize:
+                                              MainAxisSize.min,
+                                          children: [
+                                            IconButton(
+                                              padding:
+                                                  EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.edit,
+                                                size: 18,
+                                                color:
+                                                    Colors.blueGrey,
+                                              ),
+                                              onPressed: () =>
+                                                  _editQuote(quote),
+                                            ),
+                                            const SizedBox(
+                                                width: 4),
+                                            IconButton(
+                                              padding:
+                                                  EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.share,
+                                                size: 18,
+                                                color: Colors.teal,
+                                              ),
+                                              onPressed: () =>
+                                                  _shareQuote(
+                                                      quote),
+                                            ),
+                                            const SizedBox(
+                                                width: 4),
+                                            IconButton(
+                                              padding:
+                                                  EdgeInsets.zero,
+                                              constraints:
+                                                  const BoxConstraints(),
+                                              icon: const Icon(
+                                                Icons.delete_outline,
+                                                size: 20,
+                                                color:
+                                                    Colors.black38,
+                                              ),
+                                              onPressed: () {
+                                                final idx = _globalQuotes
+                                                    .indexWhere(
+                                                        (q) =>
+                                                            q['id'] ==
+                                                            quote[
+                                                                'id']);
+                                                if (idx != -1) {
+                                                  _confirmDeleteQuote(
+                                                      idx);
+                                                }
+                                              },
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                              ),
+                            );
+                          },
+                        ),
             ],
           ),
         ),
