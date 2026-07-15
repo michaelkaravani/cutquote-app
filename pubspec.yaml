@@ -37,6 +37,7 @@ dependencies:
   printing: ^5.13.2
   share_plus: ^10.0.0
   shared_preferences: ^2.3.5
+  url_launcher: ^6.3.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

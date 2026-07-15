@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'customers_screen.dart';
 import 'quote_builder_screen.dart';
 import 'profile_screen.dart';
@@ -39,15 +40,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (_showOnlyPending) {
       result = result
-          .where(
-              (q) => (q['status'] as String?) != QuoteStatus.paid.dbValue)
+          .where((q) => (q['status'] as String?) != QuoteStatus.paid.dbValue)
           .toList();
     }
 
     if (_selectedCustomerFilter != null) {
       result = result
-          .where((q) =>
-              q['customer']?['name']?.toString() == _selectedCustomerFilter)
+          .where(
+            (q) =>
+                q['customer']?['name']?.toString() == _selectedCustomerFilter,
+          )
           .toList();
     }
 
@@ -164,6 +166,43 @@ class _HomeScreenState extends State<HomeScreen> {
     final senderName = _businessName.isNotEmpty ? _businessName : 'העסק';
 
     return 'היי $customerName 👋 מצורפת הצעת מחיר מס\' $quoteNumber עבור \'$quoteTitle\' על סך $totalFormatted ₪. נשמח לאישורך כדי שנוכל להתקדם לייצור! תודה, $senderName.';
+  }
+
+  bool _isQuoteOverdue(Map<String, dynamic> quote) {
+    if (QuoteStatus.fromString(quote['status'] as String?) !=
+        QuoteStatus.sent) {
+      return false;
+    }
+    final createdAt = quote['createdAt'] as Timestamp?;
+    if (createdAt == null) return false;
+    return createdAt.toDate().isBefore(
+      DateTime.now().subtract(const Duration(days: 7)),
+    );
+  }
+
+  int _overdueDays(Map<String, dynamic> quote) {
+    final createdAt = quote['createdAt'] as Timestamp?;
+    if (createdAt == null) return 0;
+    return DateTime.now().difference(createdAt.toDate()).inDays;
+  }
+
+  Future<void> _callCustomer(Map<String, dynamic> quote) async {
+    final phone = quote['customer']?['phone']?.toString();
+    if (phone == null || phone.isEmpty) return;
+    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri.parse('tel:$cleanPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('לא ניתן לחייג למספר $cleanPhone'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _shareQuote(Map<String, dynamic> quote) async {
@@ -367,18 +406,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showStatusPicker(
-    BuildContext context,
-    Map<String, dynamic> quote,
-  ) {
-    final currentStatus =
-        QuoteStatus.fromString(quote['status'] as String?);
+  void _showStatusPicker(BuildContext context, Map<String, dynamic> quote) {
+    final currentStatus = QuoteStatus.fromString(quote['status'] as String?);
 
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       builder: (context) {
         return Directionality(
           textDirection: TextDirection.rtl,
@@ -407,10 +440,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     title: Text(status.label),
                     trailing: isSelected
-                        ? const Icon(
-                            Icons.check,
-                            color: Color(0xFF513222),
-                          )
+                        ? const Icon(Icons.check, color: Color(0xFF513222))
                         : null,
                     onTap: () {
                       Navigator.pop(context);
@@ -564,21 +594,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showCustomerFilterSheet() {
-    final uniqueNames = _globalQuotes
-        .where((q) =>
-            q['customer'] != null &&
-            q['customer']['name'] != null &&
-            q['customer']['name'].toString().trim().isNotEmpty)
-        .map((q) => q['customer']['name'].toString())
-        .toSet()
-        .toList()
-      ..sort();
+    final uniqueNames =
+        _globalQuotes
+            .where(
+              (q) =>
+                  q['customer'] != null &&
+                  q['customer']['name'] != null &&
+                  q['customer']['name'].toString().trim().isNotEmpty,
+            )
+            .map((q) => q['customer']['name'].toString())
+            .toSet()
+            .toList()
+          ..sort();
 
     showModalBottomSheet(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: Padding(
@@ -603,10 +634,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, i) => ListTile(
                     title: Text(uniqueNames[i]),
                     trailing: _selectedCustomerFilter == uniqueNames[i]
-                        ? const Icon(
-                            Icons.check,
-                            color: Color(0xFF513222),
-                          )
+                        ? const Icon(Icons.check, color: Color(0xFF513222))
                         : null,
                     onTap: () {
                       Navigator.pop(ctx);
@@ -701,10 +729,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final totalQuotes = _globalQuotes.length;
 
       final uniqueCustomers = _globalQuotes
-          .where((q) =>
-              q['customer'] != null &&
-              q['customer']['name'] != null &&
-              q['customer']['name'].toString().trim().isNotEmpty)
+          .where(
+            (q) =>
+                q['customer'] != null &&
+                q['customer']['name'] != null &&
+                q['customer']['name'].toString().trim().isNotEmpty,
+          )
           .map((q) => q['customer']['name'].toString())
           .toSet()
           .length;
@@ -864,38 +894,37 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 24),
 
               Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'הצעות מחיר אחרונות',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: customPrimaryDark,
-                      ),
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'הצעות מחיר אחרונות',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: customPrimaryDark,
                     ),
-                    if (_selectedCustomerFilter != null ||
-                        _showOnlyPending)
-                      TextButton.icon(
-                        onPressed: () => setState(() {
-                          _selectedCustomerFilter = null;
-                          _showOnlyPending = false;
-                        }),
-                        icon: const Icon(
-                          Icons.close,
-                          size: 16,
+                  ),
+                  if (_selectedCustomerFilter != null || _showOnlyPending)
+                    TextButton.icon(
+                      onPressed: () => setState(() {
+                        _selectedCustomerFilter = null;
+                        _showOnlyPending = false;
+                      }),
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF513222),
+                      ),
+                      label: const Text(
+                        'נקה סינון',
+                        style: TextStyle(
+                          fontSize: 13,
                           color: Color(0xFF513222),
                         ),
-                        label: const Text(
-                          'נקה סינון',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF513222),
-                          ),
-                        ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
               _globalQuotes.isEmpty
                   ? Card(
@@ -916,235 +945,237 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     )
                   : _filteredQuotes.isEmpty
-                      ? Card(
+                  ? Card(
+                      color: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.black12),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Center(
+                          child: Text(
+                            'לא נמצאו הצעות מחיר העונות לסינון זה',
+                            style: TextStyle(color: Colors.black54),
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _filteredQuotes.length > 5
+                          ? 5
+                          : _filteredQuotes.length,
+                      itemBuilder: (context, index) {
+                        final quote = _filteredQuotes[index];
+                        final customerName = quote['customer'] != null
+                            ? quote['customer']['name']
+                            : 'לקוח כללי';
+
+                        double total = 0;
+                        if (quote['items'] != null) {
+                          for (var item in quote['items']) {
+                            total +=
+                                (item['price'] ?? 0) * (item['quantity'] ?? 1);
+                          }
+                        }
+
+                        return Card(
                           color: Colors.white,
                           elevation: 0,
+                          margin: const EdgeInsets.only(bottom: 10),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: const BorderSide(color: Colors.black12),
                           ),
-                          child: const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(
-                              child: Text(
-                                'לא נמצאו הצעות מחיר העונות לסינון זה',
-                                style: TextStyle(color: Colors.black54),
-                              ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
                             ),
-                          ),
-                        )
-                      : ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _filteredQuotes.length > 5
-                              ? 5
-                              : _filteredQuotes.length,
-                          itemBuilder: (context, index) {
-                            final quote = _filteredQuotes[index];
-                            final customerName =
-                                quote['customer'] != null
-                                    ? quote['customer']['name']
-                                    : 'לקוח כללי';
-
-                            double total = 0;
-                            if (quote['items'] != null) {
-                              for (var item in quote['items']) {
-                                total += (item['price'] ?? 0) *
-                                    (item['quantity'] ?? 1);
-                              }
-                            }
-
-                            return Card(
-                              color: Colors.white,
-                              elevation: 0,
-                              margin:
-                                  const EdgeInsets.only(bottom: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius:
-                                    BorderRadius.circular(12),
-                                side: const BorderSide(
-                                    color: Colors.black12),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
                                   children: [
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          backgroundColor:
-                                              customAccentOrange
-                                                  .withValues(
-                                                alpha: 0.15,
-                                              ),
-                                          child: const Icon(
-                                            Icons
-                                                .description_rounded,
-                                            color:
-                                                customAccentOrange,
+                                    CircleAvatar(
+                                      backgroundColor: customAccentOrange
+                                          .withValues(alpha: 0.15),
+                                      child: const Icon(
+                                        Icons.description_rounded,
+                                        color: customAccentOrange,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: customPrimaryDark,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment
-                                                    .start,
+                                          Text(
+                                            'לקוח: $customerName',
+                                            style: const TextStyle(
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Text(
+                                      '₪ ${total.toStringAsFixed(0)}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: customAccentOrange,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Flexible(
+                                      fit: FlexFit.loose,
+                                      child: GestureDetector(
+                                        onTap: () =>
+                                            _showStatusPicker(context, quote),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: _isQuoteOverdue(quote)
+                                                ? Colors.red.shade50
+                                                : QuoteStatus.fromString(
+                                                    quote['status'] as String?,
+                                                  ).displayColor.withValues(
+                                                    alpha: 0.15,
+                                                  ),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                          ),
+                                          child: Row(
                                             children: [
-                                              Text(
-                                                '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
-                                                style: const TextStyle(
-                                                  fontWeight:
-                                                      FontWeight.bold,
-                                                  color:
-                                                      customPrimaryDark,
+                                              if (_isQuoteOverdue(quote)) ...[
+                                                Icon(
+                                                  Icons.warning_amber_rounded,
+                                                  size: 14,
+                                                  color: Colors.red.shade800,
                                                 ),
-                                              ),
-                                              Text(
-                                                'לקוח: $customerName',
-                                                style: const TextStyle(
-                                                  color:
-                                                      Colors.black54,
+                                                const SizedBox(width: 4),
+                                              ],
+                                              Flexible(
+                                                child: Text(
+                                                  _isQuoteOverdue(quote)
+                                                      ? 'נדרש מענה (${_overdueDays(quote)} ימים) ⏳'
+                                                      : QuoteStatus.fromString(
+                                                          quote['status']
+                                                              as String?,
+                                                        ).label,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color:
+                                                        _isQuoteOverdue(quote)
+                                                        ? Colors.red.shade800
+                                                        : QuoteStatus.fromString(
+                                                            quote['status']
+                                                                as String?,
+                                                          ).displayColor,
+                                                  ),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        Text(
-                                          '₪ ${total.toStringAsFixed(0)}',
-                                          style: const TextStyle(
-                                            fontWeight:
-                                                FontWeight.bold,
-                                            color:
-                                                customAccentOrange,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
-                                    const SizedBox(height: 6),
                                     Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment
-                                              .spaceBetween,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        GestureDetector(
-                                          onTap: () =>
-                                              _showStatusPicker(
-                                                  context, quote),
-                                          child: Container(
-                                            padding: const EdgeInsets
-                                                .symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
+                                        if (_isQuoteOverdue(quote) &&
+                                            quote['customer']?['phone']
+                                                    ?.toString() !=
+                                                null) ...[
+                                          IconButton(
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            icon: const Icon(
+                                              Icons.phone,
+                                              size: 18,
+                                              color: Colors.green,
                                             ),
-                                            decoration:
-                                                BoxDecoration(
-                                              color: QuoteStatus
-                                                  .fromString(
-                                                quote['status']
-                                                    as String?,
-                                              )
-                                                  .displayColor
-                                                  .withValues(
-                                                      alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius
-                                                      .circular(12),
-                                            ),
-                                            child: Text(
-                                              QuoteStatus.fromString(
-                                                quote['status']
-                                                    as String?,
-                                              ).label,
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight:
-                                                    FontWeight.bold,
-                                                color: QuoteStatus
-                                                    .fromString(
-                                                  quote['status']
-                                                      as String?,
-                                                ).displayColor,
-                                              ),
-                                            ),
+                                            onPressed: () =>
+                                                _callCustomer(quote),
                                           ),
+                                          const SizedBox(width: 4),
+                                        ],
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 18,
+                                            color: Colors.blueGrey,
+                                          ),
+                                          onPressed: () => _editQuote(quote),
                                         ),
-                                        Row(
-                                          mainAxisSize:
-                                              MainAxisSize.min,
-                                          children: [
-                                            IconButton(
-                                              padding:
-                                                  EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.edit,
-                                                size: 18,
-                                                color:
-                                                    Colors.blueGrey,
-                                              ),
-                                              onPressed: () =>
-                                                  _editQuote(quote),
-                                            ),
-                                            const SizedBox(
-                                                width: 4),
-                                            IconButton(
-                                              padding:
-                                                  EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.share,
-                                                size: 18,
-                                                color: Colors.teal,
-                                              ),
-                                              onPressed: () =>
-                                                  _shareQuote(
-                                                      quote),
-                                            ),
-                                            const SizedBox(
-                                                width: 4),
-                                            IconButton(
-                                              padding:
-                                                  EdgeInsets.zero,
-                                              constraints:
-                                                  const BoxConstraints(),
-                                              icon: const Icon(
-                                                Icons.delete_outline,
-                                                size: 20,
-                                                color:
-                                                    Colors.black38,
-                                              ),
-                                              onPressed: () {
-                                                final idx = _globalQuotes
-                                                    .indexWhere(
-                                                        (q) =>
-                                                            q['id'] ==
-                                                            quote[
-                                                                'id']);
-                                                if (idx != -1) {
-                                                  _confirmDeleteQuote(
-                                                      idx);
-                                                }
-                                              },
-                                            ),
-                                          ],
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.share,
+                                            size: 18,
+                                            color: Colors.teal,
+                                          ),
+                                          onPressed: () => _shareQuote(quote),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 20,
+                                            color: Colors.black38,
+                                          ),
+                                          onPressed: () {
+                                            final idx = _globalQuotes
+                                                .indexWhere(
+                                                  (q) => q['id'] == quote['id'],
+                                                );
+                                            if (idx != -1) {
+                                              _confirmDeleteQuote(idx);
+                                            }
+                                          },
                                         ),
                                       ],
                                     ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ],
           ),
         ),
@@ -1209,14 +1240,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onShareQuote: _shareQuote,
         onDeleteQuote: _deleteQuote,
         onUpdateQuoteStatus: (quoteId, newStatus) {
-          FirestoreService.updateQuote(
-            _uid,
-            quoteId,
-            {'status': newStatus},
-          );
+          FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
           setState(() {
-            final idx =
-                _globalQuotes.indexWhere((q) => q['id'] == quoteId);
+            final idx = _globalQuotes.indexWhere((q) => q['id'] == quoteId);
             if (idx != -1) {
               _globalQuotes[idx]['status'] = newStatus;
             }

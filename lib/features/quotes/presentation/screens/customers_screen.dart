@@ -2,7 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/quote_status.dart';
 
@@ -179,6 +181,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   Widget _buildStatusChip(Map<String, dynamic> quote) {
+    final overdue = _isQuoteOverdue(quote);
     final status = QuoteStatus.fromString(quote['status'] as String?);
     return GestureDetector(
       onTap: _isSelectionMode
@@ -187,16 +190,38 @@ class _CustomersScreenState extends State<CustomersScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: status.displayColor.withValues(alpha: 0.15),
+          color: overdue
+              ? Colors.red.shade50
+              : status.displayColor.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          status.label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            color: status.displayColor,
-          ),
+        child: Row(
+          children: [
+            if (overdue) ...[
+              Icon(
+                Icons.warning_amber_rounded,
+                size: 14,
+                color: Colors.red.shade800,
+              ),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(
+                overdue
+                    ? 'ממתין ${_overdueDays(quote)} ימים ⏳'
+                    : status.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: overdue
+                      ? Colors.red.shade800
+                      : status.displayColor,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -290,6 +315,43 @@ class _CustomersScreenState extends State<CustomersScreen> {
     });
   }
 
+  bool _isQuoteOverdue(Map<String, dynamic> quote) {
+    if (QuoteStatus.fromString(quote['status'] as String?) !=
+        QuoteStatus.sent) {
+      return false;
+    }
+    final createdAt = quote['createdAt'] as Timestamp?;
+    if (createdAt == null) return false;
+    return createdAt
+        .toDate()
+        .isBefore(DateTime.now().subtract(const Duration(days: 7)));
+  }
+
+  int _overdueDays(Map<String, dynamic> quote) {
+    final createdAt = quote['createdAt'] as Timestamp?;
+    if (createdAt == null) return 0;
+    return DateTime.now().difference(createdAt.toDate()).inDays;
+  }
+
+  Future<void> _callCustomer(Map<String, dynamic> quote) async {
+    final phone = quote['customer']?['phone']?.toString();
+    if (phone == null || phone.isEmpty) return;
+    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+    final uri = Uri.parse('tel:$cleanPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('לא ניתן לחייג למספר $cleanPhone'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _shareSelectedQuotes() async {
     final selected = widget.quotes
         .where((q) => _selectedQuoteIds.contains(q['id']))
@@ -298,7 +360,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
     final totalAmount = selected.fold<double>(
       0,
-      (sum, q) => sum + ((q['total'] as num?)?.toDouble() ?? 0),
+      (prev, q) => prev + ((q['total'] as num?)?.toDouble() ?? 0),
     );
     final senderName =
         widget.businessName.isNotEmpty ? widget.businessName : 'העסק';
@@ -689,24 +751,49 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _buildStatusChip(quote),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${items.length} פריטים',
-                                    style: const TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 12,
+                              Flexible(
+                                fit: FlexFit.loose,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildStatusChip(quote),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(
+                                        '${items.length} פריטים',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.black54,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                               if (!_isSelectionMode)
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    if (_isQuoteOverdue(quote) &&
+                                        quote['customer']?['phone']
+                                                ?.toString() !=
+                                            null) ...[
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints(),
+                                        icon: const Icon(
+                                          Icons.phone,
+                                          size: 18,
+                                          color: Colors.green,
+                                        ),
+                                        onPressed: () =>
+                                            _callCustomer(quote),
+                                      ),
+                                      const SizedBox(width: 4),
+                                    ],
                                     IconButton(
                                       padding: EdgeInsets.zero,
                                       constraints:
