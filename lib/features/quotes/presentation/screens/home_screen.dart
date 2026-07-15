@@ -9,6 +9,8 @@ import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/quote_status.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cutquote/csv_export_service.dart';
+import 'package:cutquote/month_picker_dialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -653,6 +655,44 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _exportMonthlyRevenue() async {
+    final result = await showMonthPickerDialog(context);
+    if (result == null || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: CircularProgressIndicator(color: Color(0xFFE88432)),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      await CsvExportService.exportMonthlyRevenue(
+        allQuotes: _globalQuotes,
+        year: result.year,
+        month: result.month,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
   Widget _buildDashboardView() {
     // צבעי ערכת הנושא החומה-שמנת החדשה שלך
     const customPrimaryDark = Color(0xFF513222);
@@ -809,7 +849,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // העברנו את האייקון ל-actions כדי שימוקם בצד שמאל
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 12.0), // ריווח קטן מהקצה
+            padding: const EdgeInsets.only(right: 12.0),
             child: IconButton(
               icon: const Icon(
                 Icons.account_circle_rounded,
@@ -824,6 +864,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ).then((_) => _loadAllData());
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 4.0),
+            child: IconButton(
+              icon: const Icon(
+                Icons.file_download,
+                color: Colors.white,
+                size: 24,
+              ),
+              tooltip: 'ייצוא דוח חודשי',
+              onPressed: _exportMonthlyRevenue,
             ),
           ),
         ],
