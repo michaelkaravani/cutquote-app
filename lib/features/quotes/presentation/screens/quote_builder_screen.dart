@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/firestore_service.dart';
 
 class QuoteBuilderScreen extends StatefulWidget {
+  final Map<String, dynamic>? profile;
   final List<Map<String, String>> customers;
   final List<Map<String, dynamic>> catalog;
   final Function(Map<String, dynamic>) onAddToCatalog;
@@ -12,6 +15,7 @@ class QuoteBuilderScreen extends StatefulWidget {
 
   const QuoteBuilderScreen({
     super.key,
+    this.profile,
     required this.customers,
     required this.catalog,
     required this.onAddToCatalog,
@@ -734,6 +738,12 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               if (items.isNotEmpty)
                 TextButton.icon(
                   onPressed: () async {
+                    final freshProfile =
+                        await FirestoreService.loadProfile(
+                      FirebaseAuth.instance.currentUser!.uid,
+                    );
+                    final profile = freshProfile ?? widget.profile;
+
                     await PdfService.generateAndShareQuote(
                       customer: selectedCustomer,
                       items: items,
@@ -741,6 +751,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       filename:
                           'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
                       notes: notesController.text.trim(),
+                      profile: profile,
                     );
                   },
                   icon: const Icon(Icons.share, size: 18),

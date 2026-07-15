@@ -26,7 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _globalCatalog = [];
   List<Map<String, dynamic>> _globalQuotes = [];
   bool _isLoading = true;
-  String _businessName = '';
+  String get _businessName => _profile?['businessName'] as String? ?? '';
+  Map<String, dynamic>? _profile;
 
   String? _selectedCustomerFilter;
   bool _showOnlyPending = false;
@@ -79,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _globalCustomers = customers;
         _globalQuotes = quotes;
         _globalCatalog = catalog; // פשוט טוען את מה שיש, בלי מוצרי ברירת מחדל!
-        _businessName = profile?['businessName'] ?? '';
+        _profile = profile;
         _isLoading = false;
       });
     } catch (e) {
@@ -223,12 +224,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final customer = Map<String, String>.from(quote['customer'] ?? {});
+
+    final freshProfile = await FirestoreService.loadProfile(_uid);
+    final profile = freshProfile ?? _profile;
+
     PdfService.generateAndShareQuote(
       customer: customer,
       items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
       total: (quote['total'] as num?)?.toDouble() ?? 0.0,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
       notes: quote['notes'] as String?,
+      profile: profile,
     );
   }
 
@@ -534,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _generateMonthlySummary(Map<String, String> customer) {
+  Future<void> _generateMonthlySummary(Map<String, String> customer) async {
     final customerQuotes = _globalQuotes
         .where(
           (quote) =>
@@ -586,12 +592,16 @@ class _HomeScreenState extends State<HomeScreen> {
       finalTotal += item['price'] * item['quantity'];
     }
 
+    final freshProfile = await FirestoreService.loadProfile(_uid);
+    final profile = freshProfile ?? _profile;
+
     PdfService.generateAndShareQuote(
       customer: customer,
       items: finalItems,
       total: finalTotal,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
       notes: null,
+      profile: profile,
     );
   }
 
@@ -673,10 +683,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     try {
+      final vatRate = (_profile?['vatRate'] as num?)?.toDouble() ?? 0.18;
       await CsvExportService.exportMonthlyRevenue(
         allQuotes: _globalQuotes,
         year: result.year,
         month: result.month,
+        vatRate: vatRate,
       );
     } catch (e) {
       if (!mounted) return;
@@ -1283,6 +1295,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Widget> screens = [
       CustomersScreen(
         businessName: _businessName,
+        profile: _profile,
         customers: _globalCustomers,
         quotes: _globalQuotes,
         onCustomerAdded: _addCustomer,
@@ -1302,6 +1315,7 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
       QuoteBuilderScreen(
+        profile: _profile,
         customers: _globalCustomers,
         catalog: _globalCatalog,
         onAddToCatalog: _addCatalogItem,

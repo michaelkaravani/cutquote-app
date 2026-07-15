@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'login_screen.dart';
 
@@ -15,7 +19,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final _businessNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _vatRateController = TextEditingController();
+  final _pdfNotesController = TextEditingController();
 
+  String? _logoPath;
   bool _isEditing = false;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -38,6 +45,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _businessNameController.dispose();
     _phoneController.dispose();
+    _vatRateController.dispose();
+    _pdfNotesController.dispose();
     super.dispose();
   }
 
@@ -48,6 +57,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _businessNameController.text = profile?['businessName'] ?? '';
         _phoneController.text = profile?['phone'] ?? '';
+        _vatRateController.text = (profile?['vatRate'] ?? 0.18).toString();
+        _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
+        _logoPath = profile?['logoPath'] as String?;
         _isLoading = false;
       });
     } catch (e) {
@@ -86,6 +98,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirestoreService.saveProfile(_uid, {
         'businessName': _businessNameController.text.trim(),
         'phone': _phoneController.text.trim(),
+        'vatRate': double.tryParse(_vatRateController.text) ?? 0.18,
+        'logoPath': _logoPath,
+        'defaultPdfNotes': _pdfNotesController.text.trim(),
       });
 
       if (!mounted) return;
@@ -129,6 +144,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('שגיאה: ${e.message} (${e.code})'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+    );
+    if (picked == null) return;
+
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName = 'business_logo_${DateTime.now().millisecondsSinceEpoch}.${picked.path.split('.').last}';
+      final savedPath = '${dir.path}/$fileName';
+      await File(picked.path).copy(savedPath);
+
+      setState(() {
+        _logoPath = savedPath;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בשמירת הלוגו: $e'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -288,6 +332,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 : Colors.grey[50],
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'אחוז מע"מ',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                        TextFormField(
+                          controller: _vatRateController,
+                          enabled: _isEditing,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            prefixIcon: const Icon(
+                              Icons.percent,
+                              size: 20,
+                            ),
+                            filled: true,
+                            fillColor: _isEditing
+                                ? Colors.white
+                                : Colors.grey[50],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'לוגו עסק',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: _logoPath != null &&
+                                      File(_logoPath!).existsSync()
+                                  ? Image.file(
+                                      File(_logoPath!),
+                                      width: 64,
+                                      height: 64,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              _defaultLogoPreview(),
+                                    )
+                                  : _defaultLogoPreview(),
+                            ),
+                            if (_isEditing) ...[
+                              const SizedBox(width: 12),
+                              TextButton.icon(
+                                onPressed: _pickLogo,
+                                icon: const Icon(Icons.image, size: 18),
+                                label: const Text('בחר לוגו'),
+                              ),
+                              if (_logoPath != null) ...[
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  onPressed: () =>
+                                      setState(() => _logoPath = null),
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'הערות ברירת מחדל לתחתית ה-PDF',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TextFormField(
+                          controller: _pdfNotesController,
+                          enabled: _isEditing,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText:
+                                'לדוגמה: הצעת המחיר בתוקף ל-30 יום',
+                            hintStyle: const TextStyle(fontSize: 13),
+                            filled: true,
+                            fillColor: _isEditing
+                                ? Colors.white
+                                : Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -358,6 +504,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _defaultLogoPreview() {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: primaryDark.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(
+        Icons.business_rounded,
+        size: 32,
+        color: Color(0xFF513222),
       ),
     );
   }

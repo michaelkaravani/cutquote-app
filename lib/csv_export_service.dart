@@ -6,12 +6,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cutquote/core/quote_status.dart';
 
 class CsvExportService {
-  static const double vatRate = 0.18;
-
   static Future<void> exportMonthlyRevenue({
     required List<Map<String, dynamic>> allQuotes,
     required int year,
     required int month,
+    double vatRate = 0.18,
   }) async {
     final filteredQuotes = _filterQuotesByMonth(allQuotes, year, month);
 

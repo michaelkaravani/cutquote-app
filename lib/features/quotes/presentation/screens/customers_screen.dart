@@ -5,11 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/quote_status.dart';
+import 'package:cutquote/core/firestore_service.dart';
 
 class CustomersScreen extends StatefulWidget {
   final String businessName;
+  final Map<String, dynamic>? profile;
   final List<Map<String, String>> customers;
   final List<Map<String, dynamic>> quotes;
   final Function(Map<String, String>) onCustomerAdded;
@@ -23,6 +26,7 @@ class CustomersScreen extends StatefulWidget {
   const CustomersScreen({
     super.key,
     required this.businessName,
+    this.profile,
     required this.customers,
     required this.quotes,
     required this.onCustomerAdded,
@@ -379,6 +383,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
 
     try {
+      final freshProfile =
+          await FirestoreService.loadProfile(
+        FirebaseAuth.instance.currentUser!.uid,
+      );
+      final profile = freshProfile ?? widget.profile;
+
       final files = <XFile>[];
       final tempDir = Directory.systemTemp;
 
@@ -391,6 +401,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
           items: List<Map<String, dynamic>>.from(q['items'] ?? []),
           total: (q['total'] as num?)?.toDouble() ?? 0.0,
           notes: q['notes'] as String?,
+          profile: profile,
         );
 
         final title = q['title']?.toString() ?? 'הצעת מחיר';

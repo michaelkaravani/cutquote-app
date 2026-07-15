@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -10,11 +11,21 @@ class PdfService {
     required List<Map<String, dynamic>> items,
     required double total,
     String? notes,
+    Map<String, dynamic>? profile,
   }) async {
     final pdf = pw.Document();
 
     final font = await PdfGoogleFonts.assistantRegular();
     final boldFont = await PdfGoogleFonts.assistantBold();
+
+    final businessName = profile?['businessName'] as String? ??
+        'מיכאל פרסיז\'ן ארט';
+    final phone = profile?['phone'] as String? ?? '';
+    final email =
+        profile?['email'] as String? ?? 'michaelprecisionart@gmail.com';
+    final logoPath = profile?['logoPath'] as String?;
+    final cleanQuoteNotes = (notes ?? '').trim();
+    final defaultTerms = profile?['defaultPdfNotes'] as String? ?? '';
 
     pdf.addPage(
       pw.Page(
@@ -29,23 +40,40 @@ class PdfService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    pw.Row(
                       children: [
-                        pw.Text(
-                          'מיכאל פרסיז\'ן ארט',
-                          style: pw.TextStyle(
-                            fontSize: 24,
-                            fontWeight: pw.FontWeight.bold,
-                            color: PdfColors.blue900,
+                        if (logoPath != null && File(logoPath).existsSync())
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.only(left: 10),
+                            child: pw.Image(
+                              pw.MemoryImage(
+                                File(logoPath).readAsBytesSync(),
+                              ),
+                              width: 80,
+                              height: 80,
+                            ),
                           ),
-                        ),
-                        pw.Text(
-                          'Kfar Yona | michaelprecisionart@gmail.com',
-                          style: const pw.TextStyle(
-                            fontSize: 10,
-                            color: PdfColors.grey700,
-                          ),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text(
+                              businessName,
+                              style: pw.TextStyle(
+                                fontSize: 24,
+                                fontWeight: pw.FontWeight.bold,
+                                color: PdfColors.blue900,
+                              ),
+                            ),
+                            pw.Text(
+                              [phone, email]
+                                  .where((s) => s.isNotEmpty)
+                                  .join(' | '),
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.grey700,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -127,14 +155,18 @@ class PdfService {
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
                             'תיאור הפריט / השירות',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                         ),
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
                             'כמות',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
@@ -142,7 +174,9 @@ class PdfService {
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
                             'מחיר יחידה',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
@@ -150,14 +184,17 @@ class PdfService {
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
                             'סה"כ',
-                            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                             textAlign: pw.TextAlign.center,
                           ),
                         ),
                       ],
                     ),
                     ...items.map((item) {
-                      final double itemTotal = item['price'] * item['quantity'];
+                      final double itemTotal =
+                          item['price'] * item['quantity'];
                       return pw.TableRow(
                         children: [
                           pw.Padding(
@@ -224,7 +261,7 @@ class PdfService {
                     ),
                   ),
                 ),
-                if (notes != null && notes.isNotEmpty) ...[
+                if (cleanQuoteNotes.isNotEmpty) ...[
                   pw.SizedBox(height: 15),
                   pw.Directionality(
                     textDirection: pw.TextDirection.rtl,
@@ -247,13 +284,29 @@ class PdfService {
                             ),
                           ),
                           pw.SizedBox(height: 4),
-                          pw.Text(notes),
+                          pw.Text(cleanQuoteNotes),
                         ],
                       ),
                     ),
                   ),
                 ],
-                pw.SizedBox(height: 35),
+                if (defaultTerms.isNotEmpty) ...[
+                  pw.SizedBox(height: 12),
+                  pw.Divider(thickness: 0.5, color: PdfColors.grey300),
+                  pw.SizedBox(height: 8),
+                  pw.Directionality(
+                    textDirection: pw.TextDirection.rtl,
+                    child: pw.Text(
+                      defaultTerms,
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        color: PdfColors.grey600,
+                      ),
+                      textAlign: pw.TextAlign.center,
+                    ),
+                  ),
+                ],
+                pw.SizedBox(height: 20),
                 pw.Directionality(
                   textDirection: pw.TextDirection.rtl,
                   child: pw.Row(
@@ -310,12 +363,14 @@ class PdfService {
     required double total,
     required String filename,
     String? notes,
+    Map<String, dynamic>? profile,
   }) async {
     final bytes = await generateQuotePdfBytes(
       customer: customer,
       items: items,
       total: total,
       notes: notes,
+      profile: profile,
     );
     await Printing.sharePdf(bytes: bytes, filename: filename);
   }
