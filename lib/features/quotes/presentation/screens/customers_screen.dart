@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/quote_status.dart';
 
 class CustomersScreen extends StatefulWidget {
   final List<Map<String, String>> customers;
@@ -13,6 +14,7 @@ class CustomersScreen extends StatefulWidget {
   final Function(Map<String, dynamic>) onEditQuote;
   final Function(Map<String, dynamic>) onShareQuote;
   final Function(Map<String, dynamic>) onDeleteQuote;
+  final Function(String quoteId, String newStatus)? onUpdateQuoteStatus;
 
   const CustomersScreen({
     super.key,
@@ -24,6 +26,7 @@ class CustomersScreen extends StatefulWidget {
     required this.onEditQuote,
     required this.onShareQuote,
     required this.onDeleteQuote,
+    this.onUpdateQuoteStatus,
   });
 
   @override
@@ -134,6 +137,98 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 child: const Text('מחק'),
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusChip(Map<String, dynamic> quote) {
+    final status = QuoteStatus.fromString(quote['status'] as String?);
+    return GestureDetector(
+      onTap: _isSelectionMode
+          ? null
+          : () => _showStatusPicker(context, quote),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: status.displayColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          status.label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: status.displayColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showStatusPicker(
+    BuildContext context,
+    Map<String, dynamic> quote,
+  ) {
+    final currentStatus =
+        QuoteStatus.fromString(quote['status'] as String?);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'בחר סטטוס',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: primaryDark,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...QuoteStatus.values.map((status) {
+                  final isSelected = status == currentStatus;
+                  return ListTile(
+                    leading: Icon(
+                      Icons.circle,
+                      color: status.displayColor,
+                      size: 20,
+                    ),
+                    title: Text(status.label),
+                    trailing: isSelected
+                        ? Icon(
+                            Icons.check,
+                            color: primaryDark,
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (!isSelected) {
+                        final docId = quote['id'] as String?;
+                        if (docId != null) {
+                          widget.onUpdateQuoteStatus
+                              ?.call(docId, status.dbValue);
+                          setState(() {
+                            quote['status'] = status.dbValue;
+                          });
+                        }
+                      }
+                    },
+                  );
+                }),
+              ],
+            ),
           ),
         );
       },
@@ -513,12 +608,19 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
                                       children: [
-                                        Text(
-                                          '${items.length} פריטים',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                            fontSize: 12,
-                                          ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildStatusChip(quote),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              '${items.length} פריטים',
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                         if (!_isSelectionMode)
                                           Row(

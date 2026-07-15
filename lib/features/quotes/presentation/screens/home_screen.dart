@@ -4,6 +4,7 @@ import 'quote_builder_screen.dart';
 import 'profile_screen.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/firestore_service.dart';
+import 'package:cutquote/core/quote_status.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -283,6 +284,90 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _updateQuoteStatus(
+    Map<String, dynamic> quote,
+    String newStatus,
+  ) async {
+    final docId = quote['id'] as String?;
+    if (docId == null) return;
+
+    try {
+      await FirestoreService.updateQuote(_uid, docId, {'status': newStatus});
+      setState(() {
+        quote['status'] = newStatus;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בעדכון סטטוס: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _showStatusPicker(
+    BuildContext context,
+    Map<String, dynamic> quote,
+  ) {
+    final currentStatus =
+        QuoteStatus.fromString(quote['status'] as String?);
+
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      builder: (context) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'בחר סטטוס',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Color(0xFF513222),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...QuoteStatus.values.map((status) {
+                  final isSelected = status == currentStatus;
+                  return ListTile(
+                    leading: Icon(
+                      Icons.circle,
+                      color: status.displayColor,
+                      size: 20,
+                    ),
+                    title: Text(status.label),
+                    trailing: isSelected
+                        ? const Icon(
+                            Icons.check,
+                            color: Color(0xFF513222),
+                          )
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (!isSelected) {
+                        _updateQuoteStatus(quote, status.dbValue);
+                      }
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _deleteQuoteByIndex(int index) async {
@@ -635,40 +720,77 @@ class _HomeScreenState extends State<HomeScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      icon: const Icon(
-                                        Icons.edit,
-                                        size: 18,
-                                        color: Colors.blueGrey,
+                                    GestureDetector(
+                                      onTap: () =>
+                                          _showStatusPicker(context, quote),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: QuoteStatus.fromString(
+                                            quote['status'] as String?,
+                                          ).displayColor.withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          QuoteStatus.fromString(
+                                            quote['status'] as String?,
+                                          ).label,
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: QuoteStatus.fromString(
+                                              quote['status'] as String?,
+                                            ).displayColor,
+                                          ),
+                                        ),
                                       ),
-                                      onPressed: () => _editQuote(quote),
                                     ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      icon: const Icon(
-                                        Icons.share,
-                                        size: 18,
-                                        color: Colors.teal,
-                                      ),
-                                      onPressed: () => _shareQuote(quote),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        size: 20,
-                                        color: Colors.black38,
-                                      ),
-                                      onPressed: () =>
-                                          _confirmDeleteQuote(reversedIndex),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 18,
+                                            color: Colors.blueGrey,
+                                          ),
+                                          onPressed: () => _editQuote(quote),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.share,
+                                            size: 18,
+                                            color: Colors.teal,
+                                          ),
+                                          onPressed: () =>
+                                              _shareQuote(quote),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            size: 20,
+                                            color: Colors.black38,
+                                          ),
+                                          onPressed: () =>
+                                              _confirmDeleteQuote(
+                                                  reversedIndex),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -740,6 +862,20 @@ class _HomeScreenState extends State<HomeScreen> {
         onEditQuote: _editQuote,
         onShareQuote: _shareQuote,
         onDeleteQuote: _deleteQuote,
+        onUpdateQuoteStatus: (quoteId, newStatus) {
+          FirestoreService.updateQuote(
+            _uid,
+            quoteId,
+            {'status': newStatus},
+          );
+          setState(() {
+            final idx =
+                _globalQuotes.indexWhere((q) => q['id'] == quoteId);
+            if (idx != -1) {
+              _globalQuotes[idx]['status'] = newStatus;
+            }
+          });
+        },
       ),
       QuoteBuilderScreen(
         customers: _globalCustomers,

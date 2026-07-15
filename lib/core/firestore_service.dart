@@ -82,7 +82,11 @@ class FirestoreService {
   static Future<String> addQuote(String uid, Map<String, dynamic> quote) async {
     final docRef = await _quotes(
       uid,
-    ).add({...quote, 'createdAt': FieldValue.serverTimestamp()});
+    ).add({
+      ...quote,
+      'status': quote['status'] ?? 'draft',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
     return docRef.id;
   }
 
