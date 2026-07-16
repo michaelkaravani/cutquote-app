@@ -36,20 +36,6 @@ android {
         }
     }
 
-    // הבלוק הועבר לסוף הגדרות ה-android, שם הוא נקרא בצורה נכונה
-    applicationVariants.all {
-        val variant = this
-        outputs.all {
-            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
-            val buildType = variant.buildType.name
-            val versionName = variant.versionName
-            
-            if (buildType == "release") {
-                // משנה את שם הקובץ ל- CutQuote_v1.0.0.apk
-                output.outputFileName = "CutQuote_v${versionName}.apk"
-            }
-        }
-    }
 }
 
 kotlin {
@@ -61,3 +47,21 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+tasks.register("renameReleaseApk") {
+    doLast {
+        val versionName = android.defaultConfig.versionName ?: ""
+        val apkDir = layout.buildDirectory.asFile.get().resolve("outputs/flutter-apk")
+        val apk = apkDir.resolve("app-release.apk")
+        if (apk.exists()) {
+            apk.copyTo(apkDir.resolve("CutQuote_v${versionName}.apk"), overwrite = true)
+        }
+    }
+}
+tasks.whenTaskAdded(object : org.gradle.api.Action<Task> {
+    override fun execute(task: Task) {
+        if (task.name.startsWith("assemble") && task.name.endsWith("Release")) {
+            task.finalizedBy("renameReleaseApk")
+        }
+    }
+})
