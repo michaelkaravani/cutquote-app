@@ -721,10 +721,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDashboardView() {
-    // צבעי ערכת הנושא החומה-שמנת החדשה שלך
-    const customPrimaryDark = Color(0xFF513222);
-    const customAccentOrange = Color(0xFFE88432);
-
     Widget kpiCard(
       IconData icon,
       String value,
@@ -748,7 +744,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Column(
             children: [
-              Icon(icon, color: customAccentOrange, size: 22),
+              Icon(icon, color: Theme.of(context).colorScheme.secondary, size: 22),
               const SizedBox(height: 8),
               Text(
                 value,
@@ -867,12 +863,10 @@ class _HomeScreenState extends State<HomeScreen> {
             fontSize: 18,
           ),
         ),
-        backgroundColor: const Color(0xFF513222),
+        backgroundColor: Theme.of(context).colorScheme.primary,
         elevation: 0,
         centerTitle: true,
-        // השארנו את leading ריק כדי שלא יתפוס מקום
         leading: null,
-        // העברנו את האייקון ל-actions כדי שימוקם בצד שמאל
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12.0),
@@ -957,7 +951,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildActionButton(
                     title: 'הצעת מחיר חדשה',
                     icon: Icons.calculate_rounded,
-                    color: customAccentOrange,
+                    color: Theme.of(context).colorScheme.secondary,
                     onTap: () {
                       setState(() {
                         _selectedIndex = 1;
@@ -967,7 +961,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildActionButton(
                     title: 'ניהול לקוחות',
                     icon: Icons.people_alt_rounded,
-                    color: customPrimaryDark,
+                    color: Theme.of(context).colorScheme.primary,
                     onTap: () {
                       setState(() {
                         _selectedIndex = 0;
@@ -1084,11 +1078,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Row(
                                   children: [
                                     CircleAvatar(
-                                      backgroundColor: customAccentOrange
+                                      backgroundColor: Theme.of(context).colorScheme.secondary
                                           .withValues(alpha: 0.15),
-                                      child: const Icon(
+                                      child: Icon(
                                         Icons.description_rounded,
-                                        color: customAccentOrange,
+                                        color: Theme.of(context).colorScheme.secondary,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -1120,9 +1114,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     Text(
                                       '₪ ${total.toStringAsFixed(0)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
-                                        color: customAccentOrange,
+                                        color: Theme.of(context).colorScheme.secondary,
                                         fontSize: 16,
                                       ),
                                     ),

@@ -152,7 +152,7 @@ class _TemplateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final borderColor = isSelected
-        ? const Color(0xFFE88432)
+        ? theme.colorScheme.secondary
         : theme.colorScheme.outlineVariant;
 
     return Card(
@@ -254,7 +254,7 @@ class _TemplateCard extends StatelessWidget {
                 icon: Icon(
                   Icons.visibility_outlined,
                   color: isSelected
-                      ? const Color(0xFFE88432)
+                      ? theme.colorScheme.secondary
                       : theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
                 tooltip: 'תצוגה מקדימה',

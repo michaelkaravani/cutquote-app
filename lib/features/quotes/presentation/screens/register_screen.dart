@@ -17,10 +17,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
 
-  final Color scaffoldBg = const Color(0xFFFAF7F0);
-  final Color primaryDark = const Color(0xFF513222);
-  final Color accentOrange = const Color(0xFFE88432);
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -68,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: Text(
                   'הבנתי',
                   style: TextStyle(
-                    color: accentOrange,
+                    color: Theme.of(context).colorScheme.secondary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -102,12 +98,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: scaffoldBg,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: primaryDark),
+            icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.primary),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -123,7 +119,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 40,
-                        backgroundColor: accentOrange,
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
                         child: const Icon(
                           Icons.person_add_alt_1_rounded,
                           color: Colors.white,
@@ -138,23 +134,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: primaryDark,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
                     const SizedBox(height: 32),
-                    const Text(
+                    Text(
                       'כתובת אימייל',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Colors.black87),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: const InputDecoration(
                         hintText: 'name@example.com',
                         prefixIcon: Icon(Icons.email_outlined, size: 20),
@@ -170,18 +166,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                     ),
                     const SizedBox(height: 18),
-                    const Text(
+                    Text(
                       'סיסמה',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
-                      style: const TextStyle(color: Colors.black87),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
                         hintText: 'לפחות 6 תווים',
                         prefixIcon: const Icon(Icons.lock_outline, size: 20),
@@ -191,7 +187,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             size: 20,
-                            color: Colors.black45,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           onPressed: () => setState(
                             () => _isPasswordVisible = !_isPasswordVisible,
@@ -209,18 +205,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                     ),
                     const SizedBox(height: 18),
-                    const Text(
+                    Text(
                       'אימות סיסמה',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: !_isPasswordVisible,
-                      style: const TextStyle(color: Colors.black87),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: const InputDecoration(
                         hintText: 'הקלד את הסיסמה שנית',
                         prefixIcon: Icon(Icons.lock_clock_outlined, size: 20),
@@ -239,7 +235,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryDark,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(52),
                         elevation: 0,

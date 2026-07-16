@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_theme.dart';
 
 final ThemeNotifier themeNotifier = ThemeNotifier();
 
 class ThemeNotifier extends ChangeNotifier {
   static const _key = 'theme_mode';
+  static const _styleKey = 'theme_style';
 
   late ThemeMode _themeMode;
+  late ThemeStyle _themeStyle;
 
   ThemeMode get themeMode => _themeMode;
+  ThemeStyle get themeStyle => _themeStyle;
 
   ThemeNotifier() {
+    _themeMode = ThemeMode.system;
+    _themeStyle = ThemeStyle.classic;
     _load();
   }
 
@@ -25,6 +31,15 @@ class ThemeNotifier extends ChangeNotifier {
       default:
         _themeMode = ThemeMode.system;
     }
+    final styleValue = prefs.getString(_styleKey);
+    if (styleValue != null) {
+      _themeStyle = ThemeStyle.values.firstWhere(
+        (s) => s.name == styleValue,
+        orElse: () => ThemeStyle.classic,
+      );
+    } else {
+      _themeStyle = ThemeStyle.classic;
+    }
     notifyListeners();
   }
 
@@ -34,5 +49,13 @@ class ThemeNotifier extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, mode.name);
+  }
+
+  Future<void> setThemeStyle(ThemeStyle style) async {
+    if (_themeStyle == style) return;
+    _themeStyle = style;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_styleKey, style.name);
   }
 }

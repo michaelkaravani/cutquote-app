@@ -80,9 +80,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }).toList();
   }
 
-  // פלטת הצבעים המדויקת מהעיצוב שלך
-  final Color accentOrange = const Color(0xFFE88432); // כתום חמרה
-
   final Set<String> _selectedQuoteIds = {};
   bool _isSelectionMode = false;
 
@@ -485,7 +482,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             .withValues(alpha: 0.6),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: accentOrange),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                       ),
                     ),
                   ),
@@ -504,7 +501,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             .withValues(alpha: 0.6),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: accentOrange),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                       ),
                     ),
                   ),
@@ -523,7 +520,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             .withValues(alpha: 0.6),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: accentOrange),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                       ),
                     ),
                   ),
@@ -543,7 +540,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             .withValues(alpha: 0.6),
                       ),
                       focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: accentOrange),
+                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                       ),
                     ),
                   ),
@@ -587,7 +584,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: accentOrange,
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
                   foregroundColor: Colors.white,
                 ),
                 child: const Text('שמירה'),
@@ -654,7 +651,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accentOrange, width: 1.5),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary, width: 1.5),
         ),
       ),
     );
@@ -696,7 +693,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
           surfaceTintColor: Colors.transparent,
           margin: const EdgeInsets.only(bottom: 12),
           child: ExpansionTile(
-            iconColor: accentOrange,
+            iconColor: Theme.of(context).colorScheme.secondary,
             collapsedIconColor: Theme.of(context).colorScheme.onSurface,
             title: Text(
               customer['name']!,
@@ -760,9 +757,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                             .colorScheme
                             .surfaceContainerLow,
                         borderRadius: BorderRadius.circular(8),
-                        border: const Border(
+                        border: Border(
                           right: BorderSide(
-                            color: Color(0xFFE88432),
+                            color: Theme.of(context).colorScheme.secondary,
                             width: 4,
                           ),
                         ),
@@ -780,7 +777,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                   ),
                                   onChanged: (_) =>
                                       _toggleSelection(quote['id']),
-                                  activeColor: accentOrange,
+                                  activeColor: Theme.of(context).colorScheme.secondary,
                                   materialTapTargetSize:
                                       MaterialTapTargetSize
                                           .shrinkWrap,
@@ -954,7 +951,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       ),
                       label: const Text('ריכוז חודשי (PDF)'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF513222),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -1030,7 +1027,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ),
           ),
           centerTitle: true,
-          backgroundColor: const Color(0xFF513222),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           elevation: 0,
           actions: [
             if (_isSelectionMode)
@@ -1062,7 +1059,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ? (_selectedQuoteIds.isNotEmpty
                 ? FloatingActionButton.extended(
                     onPressed: () { _shareSelectedQuotes(); },
-                    backgroundColor: accentOrange,
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
                     icon: const Icon(Icons.share, color: Colors.white),
                     label: Text(
                       'שתף ${_selectedQuoteIds.length} הצעות',
@@ -1072,7 +1069,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 : const SizedBox.shrink())
             : FloatingActionButton(
                 onPressed: _openAddCustomerDialog,
-                backgroundColor: accentOrange,
+                backgroundColor: Theme.of(context).colorScheme.secondary,
                 elevation: 2,
                 child: const Icon(Icons.add, color: Colors.white),
               ),

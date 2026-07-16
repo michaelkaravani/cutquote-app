@@ -98,8 +98,8 @@ class AboutScreen extends StatelessWidget {
                         icon: const Icon(Icons.chat),
                         label: const Text('ליצירת קשר ב-WhatsApp'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFE88432),
-                          side: const BorderSide(color: Color(0xFFE88432)),
+                          foregroundColor: Theme.of(context).colorScheme.secondary,
+                          side: BorderSide(color: Theme.of(context).colorScheme.secondary),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,

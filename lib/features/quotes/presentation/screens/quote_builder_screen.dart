@@ -40,8 +40,6 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   bool saveToCatalog = false;
   Map<String, String>? selectedCustomer;
 
-  final Color accentOrange = const Color(0xFFE88432);
-
   @override
   void initState() {
     super.initState();
@@ -126,7 +124,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                               ),
                             ),
                             focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: accentOrange),
+                              borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                             ),
                           ),
                           items: widget.catalog.asMap().entries.map((entry) {
@@ -195,7 +193,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                                 .withValues(alpha: 0.6),
                           ),
                           focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: accentOrange),
+                            borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                           ),
                         ),
                       ),
@@ -222,7 +220,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                                       .withValues(alpha: 0.6),
                                 ),
                                 focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: accentOrange),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                                 ),
                               ),
                             ),
@@ -251,7 +249,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                                       .withValues(alpha: 0.6),
                                 ),
                                 focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: accentOrange),
+                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                                 ),
                               ),
                             ),
@@ -263,7 +261,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                         children: [
                           Checkbox(
                             value: saveToCatalog,
-                            activeColor: accentOrange,
+                            activeColor: Theme.of(context).colorScheme.secondary,
                             onChanged: (val) {
                               dialogSetState(() {
                                 saveToCatalog = val ?? false;
@@ -331,7 +329,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: accentOrange,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('שמירה'),
@@ -360,13 +358,13 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
             ),
           ),
           centerTitle: true,
-          backgroundColor: const Color(0xFF513222),
+          backgroundColor: Theme.of(context).colorScheme.primary,
           elevation: 0,
           actions: [
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: CircleAvatar(
-                backgroundColor: accentOrange,
+                backgroundColor: Theme.of(context).colorScheme.secondary,
                 child: const Text(
                   'CQ',
                   style: TextStyle(
@@ -405,7 +403,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: accentOrange),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                   ),
                 ),
               ),
@@ -433,7 +431,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: accentOrange),
+                            Icon(Icons.info_outline, color: Theme.of(context).colorScheme.secondary),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -530,19 +528,19 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                     color: Colors.transparent,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: accentOrange.withValues(alpha: 0.6),
+                      color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
                       width: 1.5,
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add, color: accentOrange, size: 20),
+                      Icon(Icons.add, color: Theme.of(context).colorScheme.secondary, size: 20),
                       const SizedBox(width: 6),
                       Text(
                         'הוסף שירות / פריט',
                         style: TextStyle(
-                          color: accentOrange,
+                          color: Theme.of(context).colorScheme.secondary,
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
@@ -692,7 +690,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           '₪${calculateTotal().toStringAsFixed(2)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: accentOrange,
+                            color: Theme.of(context).colorScheme.secondary,
                             fontSize: 20,
                           ),
                         ),
@@ -725,7 +723,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: accentOrange),
+                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
                   ),
                 ),
               ),
@@ -913,9 +911,9 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 itemBuilder: (context, index) {
                   final customer = widget.customers[index];
                   return ListTile(
-                    leading: const CircleAvatar(
-                      backgroundColor: Color(0xFFE88432),
-                      child: Icon(Icons.person, color: Colors.white),
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      child: const Icon(Icons.person, color: Colors.white),
                     ),
                     title: Text(customer['name']!),
                     onTap: () {

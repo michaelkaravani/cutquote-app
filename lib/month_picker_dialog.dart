@@ -22,16 +22,16 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
           return Directionality(
             textDirection: TextDirection.rtl,
             child: AlertDialog(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
               surfaceTintColor: Colors.transparent,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: const Text(
+              title: Text(
                 'ייצוא דוח הכנסות חודשי',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF513222),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               content: Column(
@@ -42,6 +42,7 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
                     runSpacing: 8,
                     children: [
                       _buildQuickChip(
+                        context,
                         label: 'החודש',
                         subtitle: '${_getMonthName(now.month)} ${now.year}',
                         isSelected: !isCustom &&
@@ -56,6 +57,7 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
                         },
                       ),
                       _buildQuickChip(
+                        context,
                         label: 'חודש שעבר',
                         subtitle: _getPreviousMonthLabel(now),
                         isSelected: !isCustom &&
@@ -71,6 +73,7 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
                         },
                       ),
                       _buildQuickChip(
+                        context,
                         label: 'בחירה ידנית',
                         subtitle: isCustom
                             ? '${_getMonthName(selectedMonth)} $selectedYear'
@@ -164,9 +167,11 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'ביטול',
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
                 ),
                 ElevatedButton(
@@ -178,7 +183,7 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF513222),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('ייצא CSV'),
@@ -192,7 +197,8 @@ Future<MonthPickerResult?> showMonthPickerDialog(BuildContext context) async {
   );
 }
 
-Widget _buildQuickChip({
+Widget _buildQuickChip(
+  BuildContext context, {
   required String label,
   required String subtitle,
   required bool isSelected,
@@ -204,12 +210,13 @@ Widget _buildQuickChip({
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isSelected
-            ? const Color(0xFF513222)
-            : const Color(0xFFFAF7F0),
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color:
-              isSelected ? const Color(0xFF513222) : Colors.grey.shade300,
+          color: isSelected
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).dividerColor,
         ),
       ),
       child: Column(
@@ -218,9 +225,9 @@ Widget _buildQuickChip({
             label,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isSelected
-                  ? Colors.white
-                  : const Color(0xFF513222),
+            color: isSelected
+                ? Theme.of(context).colorScheme.onPrimary
+                : Theme.of(context).colorScheme.primary,
             ),
           ),
           if (subtitle.isNotEmpty) ...[
@@ -229,7 +236,9 @@ Widget _buildQuickChip({
               subtitle,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? Colors.white70 : Colors.grey,
+                color: isSelected
+                    ? Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)
+                    : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],

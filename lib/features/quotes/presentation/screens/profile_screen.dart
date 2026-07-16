@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
+import 'package:cutquote/core/app_theme.dart';
 import 'package:cutquote/core/theme_notifier.dart';
 import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'about_screen.dart';
@@ -31,8 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = true;
   bool _isSaving = false;
-
-  final Color accentOrange = const Color(0xFFE88432);
 
   String get _uid => FirebaseAuth.instance.currentUser!.uid;
   String get _email => FirebaseAuth.instance.currentUser?.email ?? '';
@@ -121,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('הפרטים עודכנו ונשמרו בהצלחה!'),
-          backgroundColor: accentOrange,
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     } catch (e) {
@@ -146,7 +145,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('קישור לאיפוס סיסמה נשלח לכתובת:\n$_email'),
-          backgroundColor: accentOrange,
+          backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -189,14 +188,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showThemePicker() {
-    final current = themeNotifier.themeMode;
+    final currentMode = themeNotifier.themeMode;
+    final currentStyle = themeNotifier.themeStyle;
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,26 +211,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              _themeOption(
+              Text(
+                'סגנון צבע',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Theme.of(ctx)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: ThemeStyle.values.map((style) {
+                  final isSelected = style == currentStyle;
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        themeNotifier.setThemeStyle(style);
+                        Navigator.pop(ctx);
+                        _showThemePicker();
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Theme.of(ctx)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.1)
+                              : Theme.of(ctx)
+                                  .colorScheme
+                                  .surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isSelected
+                                ? Theme.of(ctx).colorScheme.primary
+                                : Theme.of(ctx)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.15),
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              style.icon,
+                              color: isSelected
+                                  ? Theme.of(ctx).colorScheme.primary
+                                  : Theme.of(ctx)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                              size: 28,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              style.label,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: isSelected
+                                    ? Theme.of(ctx).colorScheme.primary
+                                    : Theme.of(ctx)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'מצב תצוגה',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                  color: Theme.of(ctx)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _themeModeOption(
                 ctx,
                 icon: Icons.brightness_auto,
                 label: 'ברירת מחדל של המערכת',
                 mode: ThemeMode.system,
-                isSelected: current == ThemeMode.system,
+                isSelected: currentMode == ThemeMode.system,
               ),
-              _themeOption(
+              _themeModeOption(
                 ctx,
                 icon: Icons.light_mode,
                 label: 'מצב בהיר',
                 mode: ThemeMode.light,
-                isSelected: current == ThemeMode.light,
+                isSelected: currentMode == ThemeMode.light,
               ),
-              _themeOption(
+              _themeModeOption(
                 ctx,
                 icon: Icons.dark_mode,
                 label: 'מצב כהה',
                 mode: ThemeMode.dark,
-                isSelected: current == ThemeMode.dark,
+                isSelected: currentMode == ThemeMode.dark,
               ),
             ],
           ),
@@ -238,7 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _themeOption(
+  Widget _themeModeOption(
     BuildContext ctx, {
     required IconData icon,
     required String label,
@@ -585,7 +680,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: accentOrange,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
@@ -630,7 +725,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      _themeModeLabel(themeNotifier.themeMode),
+                      '${themeNotifier.themeStyle.label} • ${_themeModeLabel(themeNotifier.themeMode)}',
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context)

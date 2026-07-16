@@ -24,10 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isRegPasswordVisible = false;
   bool _isLoading = false;
 
-  final Color scaffoldBg = const Color(0xFFFAF7F0);
-  final Color primaryDark = const Color(0xFF513222);
-  final Color accentOrange = const Color(0xFFE88432);
-
   @override
   void dispose() {
     _emailController.dispose();
@@ -51,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> {
             return Directionality(
               textDirection: TextDirection.rtl,
               child: AlertDialog(
-                backgroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.surface,
                 surfaceTintColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -59,7 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 title: Text(
                   'יצירת חשבון חדש',
                   style: TextStyle(
-                    color: primaryDark,
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -70,20 +66,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'כתובת אימייל',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         TextFormField(
                           controller: _regEmailController,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(color: Colors.black87),
-                          decoration: const InputDecoration(
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                          decoration: InputDecoration(
                             hintText: 'name@example.com',
                             prefixIcon: Icon(Icons.email_outlined, size: 18),
                           ),
@@ -98,19 +94,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 14),
-                        const Text(
+                        Text(
                           'סיסמה',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         TextFormField(
                           controller: _regPasswordController,
                           obscureText: !_isRegPasswordVisible,
-                          style: const TextStyle(color: Colors.black87),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                           decoration: InputDecoration(
                             hintText: 'לפחות 6 תווים',
                             prefixIcon: const Icon(
@@ -143,20 +139,20 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: 14),
-                        const Text(
+                        Text(
                           'אימות סיסמה',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 4),
                         TextFormField(
                           controller: _regConfirmPasswordController,
                           obscureText: !_isRegPasswordVisible,
-                          style: const TextStyle(color: Colors.black87),
-                          decoration: const InputDecoration(
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: InputDecoration(
                             hintText: 'הקלד את הסיסמה שנית',
                             prefixIcon: Icon(
                               Icons.lock_clock_outlined,
@@ -203,6 +199,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Navigator.of(dialogContext);
                               final ScaffoldMessengerState messenger =
                                   ScaffoldMessenger.of(context);
+                              final Color accentColor =
+                                  Theme.of(context).colorScheme.secondary;
 
                               try {
                                 UserCredential userCredential =
@@ -228,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     content: const Text(
                                       'החשבון נוצר בהצלחה! אימייל אימות נשלח לתיבת הדואר שלך.',
                                     ),
-                                    backgroundColor: accentOrange,
+                                    backgroundColor: accentColor,
                                     duration: const Duration(seconds: 5),
                                   ),
                                 );
@@ -258,7 +256,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             }
                           },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: accentOrange,
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
                     ),
                     child: _isLoading
@@ -310,14 +308,14 @@ class _LoginScreenState extends State<LoginScreen> {
         builder: (context) => Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).colorScheme.surface,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: Text(
-              'אימות נשלח',
-              style: TextStyle(color: primaryDark, fontWeight: FontWeight.bold),
+              title: Text(
+                'אימות נשלח',
+                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold),
             ),
             content: Text(
               'קישור מאובטח לאיפוס הסיסמה נשלח לכתובת:\n${_emailController.text}',
@@ -327,12 +325,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () {
                   Navigator.pop(context);
                 },
-                child: Text(
-                  'הבנתי',
-                  style: TextStyle(
-                    color: accentOrange,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  child: Text(
+                    'הבנתי',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.secondary,
+                      fontWeight: FontWeight.bold,
+                    ),
                 ),
               ),
             ],
@@ -426,7 +424,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: scaffoldBg,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         body: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -443,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Center(
                       child: CircleAvatar(
                         radius: 50,
-                        backgroundColor: accentOrange,
+                        backgroundColor: Theme.of(context).colorScheme.secondary,
                         child: const Text(
                           'CQ',
                           style: TextStyle(
@@ -461,7 +459,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
-                          color: primaryDark,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -470,27 +468,27 @@ class _LoginScreenState extends State<LoginScreen> {
                         'מערכת ניהול וחישוב הצעות מחיר לייצור',
                         style: TextStyle(
                           fontSize: 14,
-                          color: primaryDark.withValues(alpha: 0.6),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
                     const SizedBox(height: 40),
 
-                    const Text(
+                    Text(
                       'כתובת אימייל',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Colors.black87),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                      decoration: InputDecoration(
                         hintText: 'name@example.com',
-                        hintStyle: TextStyle(color: Colors.black26),
+                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)),
                         prefixIcon: Icon(Icons.email_outlined, size: 20),
                       ),
                       validator: (value) {
@@ -505,18 +503,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    const Text(
+                    Text(
                       'סיסמה',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_isPasswordVisible,
-                      style: const TextStyle(color: Colors.black87),
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                       decoration: InputDecoration(
                         hintText: 'הזן את סיסמתך',
                         hintStyle: const TextStyle(color: Colors.black26),
@@ -527,7 +525,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ? Icons.visibility_off_outlined
                                 : Icons.visibility_outlined,
                             size: 20,
-                            color: Colors.black45,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                           onPressed: () {
                             setState(() {
@@ -556,7 +554,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'שכחתי סיסמה...',
                           style: TextStyle(
-                            color: accentOrange,
+                            color: Theme.of(context).colorScheme.secondary,
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
@@ -568,7 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryDark,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(52),
                         elevation: 0,
@@ -591,21 +589,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           'אין לך חשבון עדיין?',
-                          style: TextStyle(color: Colors.black54),
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
                         ),
                         TextButton(
                           onPressed: _isLoading ? null : _openRegisterDialog,
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                           ),
-                          child: Text(
-                            'הרשמה כאן',
-                            style: TextStyle(
-                              color: accentOrange,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.underline,
+                            child: Text(
+                              'הרשמה כאן',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.secondary,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
