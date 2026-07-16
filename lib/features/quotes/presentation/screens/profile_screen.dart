@@ -6,8 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/theme_notifier.dart';
+import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'about_screen.dart';
 import 'login_screen.dart';
+import 'pdf_templates_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phoneController = TextEditingController();
   final _vatRateController = TextEditingController();
   final _pdfNotesController = TextEditingController();
+  final _paymentTermsController = TextEditingController();
 
   String? _logoPath;
   bool _isEditing = false;
@@ -46,6 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.dispose();
     _vatRateController.dispose();
     _pdfNotesController.dispose();
+    _paymentTermsController.dispose();
     super.dispose();
   }
 
@@ -60,6 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _phoneController.text = profile?['phone'] ?? '';
         _vatRateController.text = (profile?['vatRate'] ?? 0.18).toString();
         _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
+        _paymentTermsController.text = profile?['paymentTerms'] ?? '';
         _logoPath = profile?['logoPath'] as String?;
         _isLoading = false;
       });
@@ -105,6 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'vatRate': double.tryParse(_vatRateController.text) ?? 0.18,
         'logoPath': _logoPath,
         'defaultPdfNotes': _pdfNotesController.text.trim(),
+        'paymentTerms': _paymentTermsController.text.trim(),
       });
 
       if (!mounted) return;
@@ -162,6 +168,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return 'מצב בהיר';
       case ThemeMode.dark:
         return 'מצב כהה';
+    }
+  }
+
+  String _pdfTemplateLabel(String template) {
+    switch (template) {
+      case 'premium_dark':
+        return 'יוקרתי כהה';
+      case 'clean_corporate':
+        return 'תאגידי נקי';
+      case 'natural_craft':
+        return 'קראפטי טבעי';
+      case 'minimal_stone':
+        return 'מינימל אבן';
+      case 'modern_bordeaux':
+        return 'מודרני בורדו';
+      default:
+        return 'יוקרתי כהה';
     }
   }
 
@@ -527,6 +550,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .surfaceContainerLow,
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'תנאי תשלום ל-PDF',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TextFormField(
+                          controller: _paymentTermsController,
+                          enabled: _isEditing,
+                          maxLines: 2,
+                          decoration: InputDecoration(
+                            hintText:
+                                'לדוגמה: תשלום עם קבלת ההצעה',
+                            filled: true,
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -599,6 +648,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           .withValues(alpha: 0.6),
                     ),
                     onTap: _showThemePicker,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Card(
+                  surfaceTintColor: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.description_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'תבניות PDF',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _pdfTemplateLabel(pdfTemplateNotifier.currentTemplate),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PdfTemplatesScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
