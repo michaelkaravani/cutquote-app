@@ -69,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAllData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     try {
       final customers = await FirestoreService.loadCustomers(_uid);
       final catalog = await FirestoreService.loadCatalog(_uid);
@@ -886,7 +888,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   MaterialPageRoute(
                     builder: (context) => const ProfileScreen(),
                   ),
-                ).then((_) => _loadAllData());
+                ).then((_) {
+                  if (FirebaseAuth.instance.currentUser != null) {
+                    _loadAllData();
+                  }
+                });
               },
             ),
           ),

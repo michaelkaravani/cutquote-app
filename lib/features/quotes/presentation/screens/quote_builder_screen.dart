@@ -803,10 +803,10 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               if (items.isNotEmpty)
                 TextButton.icon(
                   onPressed: () async {
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (uid == null) return;
                     final freshProfile =
-                        await FirestoreService.loadProfile(
-                      FirebaseAuth.instance.currentUser!.uid,
-                    );
+                        await FirestoreService.loadProfile(uid);
                     final profile = freshProfile ?? widget.profile;
 
                     await PdfService.generateAndShareQuote(

@@ -395,10 +395,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }
 
     try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
       final freshProfile =
-          await FirestoreService.loadProfile(
-        FirebaseAuth.instance.currentUser!.uid,
-      );
+          await FirestoreService.loadProfile(uid);
       final profile = freshProfile ?? widget.profile;
 
       final files = <XFile>[];

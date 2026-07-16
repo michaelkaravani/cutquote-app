@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/theme_notifier.dart';
+import 'about_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -49,6 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     try {
       final profile = await FirestoreService.loadProfile(_uid);
       if (!mounted) return;
@@ -87,6 +90,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
     setState(() {
       _isSaving = true;
@@ -593,6 +599,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           .withValues(alpha: 0.6),
                     ),
                     onTap: _showThemePicker,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Card(
+                  surfaceTintColor: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.info_outline,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'אודות האפליקציה',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AboutScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 24),
