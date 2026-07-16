@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
+import 'package:cutquote/core/theme_notifier.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -27,10 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
-  final Color backgroundColor = const Color(0xFFFAF7F0);
-  final Color primaryDark = const Color(0xFF513222);
   final Color accentOrange = const Color(0xFFE88432);
-  final Color cardColor = Colors.white;
 
   String get _uid => FirebaseAuth.instance.currentUser!.uid;
   String get _email => FirebaseAuth.instance.currentUser?.email ?? '';
@@ -150,6 +148,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'ברירת מחדל של המערכת';
+      case ThemeMode.light:
+        return 'מצב בהיר';
+      case ThemeMode.dark:
+        return 'מצב כהה';
+    }
+  }
+
+  void _showThemePicker() {
+    final current = themeNotifier.themeMode;
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ערכת נושא',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Theme.of(ctx).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _themeOption(
+                ctx,
+                icon: Icons.brightness_auto,
+                label: 'ברירת מחדל של המערכת',
+                mode: ThemeMode.system,
+                isSelected: current == ThemeMode.system,
+              ),
+              _themeOption(
+                ctx,
+                icon: Icons.light_mode,
+                label: 'מצב בהיר',
+                mode: ThemeMode.light,
+                isSelected: current == ThemeMode.light,
+              ),
+              _themeOption(
+                ctx,
+                icon: Icons.dark_mode,
+                label: 'מצב כהה',
+                mode: ThemeMode.dark,
+                isSelected: current == ThemeMode.dark,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _themeOption(
+    BuildContext ctx, {
+    required IconData icon,
+    required String label,
+    required ThemeMode mode,
+    required bool isSelected,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: Theme.of(ctx).colorScheme.primary),
+      title: Text(label),
+      trailing: isSelected
+          ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
+          : null,
+      onTap: () {
+        Navigator.pop(ctx);
+        themeNotifier.setThemeMode(mode);
+      },
+    );
+  }
+
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(
@@ -183,31 +262,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: backgroundColor,
-        body: Center(child: CircularProgressIndicator(color: accentOrange)),
+        body: Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
       );
     }
 
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: backgroundColor,
         appBar: AppBar(
-          title: const Text(
-            'פרופיל משתמש',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          centerTitle: true,
-          backgroundColor: primaryDark,
-          elevation: 0,
+          title: const Text('פרופיל משתמש'),
           actions: [
             if (!_isEditing) ...{
               IconButton(
-                icon: const Icon(Icons.edit, color: Colors.white),
+                icon: const Icon(Icons.edit),
                 onPressed: () => setState(() => _isEditing = true),
               ),
             },
@@ -225,10 +296,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       CircleAvatar(
                         radius: 45,
-                        backgroundColor: primaryDark,
-                        child: const Icon(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        child: Icon(
                           Icons.business_rounded,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           size: 40,
                         ),
                       ),
@@ -240,35 +311,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: primaryDark,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'מנהל מערכת',
-                        style: TextStyle(fontSize: 13, color: Colors.black45),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
                 Card(
-                  color: cardColor,
                   surfaceTintColor: Colors.transparent,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: const BorderSide(color: Colors.black12),
-                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'שם העסק / פרופיל',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -281,17 +355,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Text(
+                        Text(
                           'כתובת אימייל',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -304,16 +381,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: Colors.grey[50],
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                             helperText: 'לא ניתן לשינוי כאן',
                           ),
                         ),
                         const SizedBox(height: 18),
-                        const Text(
+                        Text(
                           'מספר טלפון',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -327,17 +409,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text(
+                        Text(
                           'אחוז מע"מ',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -353,17 +438,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const Text(
+                        Text(
                           'לוגו עסק',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -408,11 +496,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        const Text(
+                        Text(
                           'הערות ברירת מחדל לתחתית ה-PDF',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -424,14 +515,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           decoration: InputDecoration(
                             hintText:
                                 'לדוגמה: הצעת המחיר בתוקף ל-30 יום',
-                            hintStyle: const TextStyle(fontSize: 13),
                             filled: true,
-                            fillColor: _isEditing
-                                ? Colors.white
-                                : Colors.grey[50],
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+                            fillColor: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                           ),
                         ),
                       ],
@@ -444,6 +531,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: _isSaving ? null : _handleSave,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: accentOrange,
+                      foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -475,13 +563,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 },
                 const SizedBox(height: 24),
+                Card(
+                  surfaceTintColor: Colors.transparent,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.palette_outlined,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    title: const Text(
+                      'ערכת נושא',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _themeModeLabel(themeNotifier.themeMode),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 16,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
+                    onTap: _showThemePicker,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 TextButton.icon(
                   onPressed: _handleSendPasswordReset,
-                  icon: Icon(Icons.lock_reset, color: primaryDark),
+                  icon: Icon(
+                    Icons.lock_reset,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   label: Text(
                     'שליחת קישור לאיפוס סיסמה',
                     style: TextStyle(
-                      color: primaryDark,
+                      color: Theme.of(context).colorScheme.primary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -513,13 +637,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: 64,
       height: 64,
       decoration: BoxDecoration(
-        color: primaryDark.withValues(alpha: 0.1),
+        color: Theme.of(context)
+            .colorScheme
+            .primary
+            .withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(
+      child: Icon(
         Icons.business_rounded,
         size: 32,
-        color: Color(0xFF513222),
+        color: Theme.of(context).colorScheme.primary,
       ),
     );
   }

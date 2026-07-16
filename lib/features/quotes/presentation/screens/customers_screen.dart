@@ -81,10 +81,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   // פלטת הצבעים המדויקת מהעיצוב שלך
-  final Color backgroundColor = const Color(0xFFFAF7F0); // רקע שמנת חם
-  final Color primaryDark = const Color(0xFF513222); // חום שוקולד כהה
   final Color accentOrange = const Color(0xFFE88432); // כתום חמרה
-  final Color cardColor = Colors.white;
 
   final Set<String> _selectedQuoteIds = {};
   bool _isSelectionMode = false;
@@ -96,25 +93,34 @@ class _CustomersScreenState extends State<CustomersScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             title: Text(
               'מחיקת לקוח',
-              style: TextStyle(color: primaryDark, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             content: Text(
               'האם אתה בטוח שברצונך למחוק את "$customerName"? הפעולה אינה הפיכה.',
-              style: const TextStyle(color: Colors.black87),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'ביטול',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -142,7 +148,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
@@ -150,20 +155,27 @@ class _CustomersScreenState extends State<CustomersScreen> {
             title: Text(
               'מחיקת הצעה',
               style: TextStyle(
-                color: primaryDark,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: Text(
               'האם אתה בטוח שברצונך למחוק הצעה זו מתאריך ${quote['date'] ?? '—'}?',
-              style: const TextStyle(color: Colors.black87),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'ביטול',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -257,7 +269,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
-                    color: primaryDark,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -273,7 +285,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     trailing: isSelected
                         ? Icon(
                             Icons.check,
-                            color: primaryDark,
+                            color: Theme.of(context).colorScheme.primary,
                           )
                         : null,
                     onTap: () {
@@ -444,14 +456,16 @@ class _CustomersScreenState extends State<CustomersScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             title: Text(
               'הוספת לקוח חדש',
-              style: TextStyle(color: primaryDark, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             content: SingleChildScrollView(
               child: Column(
@@ -459,10 +473,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                 children: [
                   TextField(
                     controller: _nameController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'שם הלקוח / חברה',
-                      labelStyle: const TextStyle(color: Colors.black54),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                       focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: accentOrange),
                       ),
@@ -471,10 +492,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _hpController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'ח.פ / ת.ז',
-                      labelStyle: const TextStyle(color: Colors.black54),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                       focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: accentOrange),
                       ),
@@ -483,10 +511,17 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _addressController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'כתובת',
-                      labelStyle: const TextStyle(color: Colors.black54),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                       focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: accentOrange),
                       ),
@@ -495,11 +530,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: _phoneController,
-                    style: const TextStyle(color: Colors.black87),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       labelText: 'טלפון',
-                      labelStyle: const TextStyle(color: Colors.black54),
+                      labelStyle: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                       focusedBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: accentOrange),
                       ),
@@ -517,9 +559,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   _phoneController.clear();
                   Navigator.pop(context);
                 },
-                child: const Text(
+                child: Text(
                   'ביטול',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -560,14 +607,34 @@ class _CustomersScreenState extends State<CustomersScreen> {
           _searchQuery = value;
         });
       },
-      style: const TextStyle(color: Colors.black87, fontSize: 14),
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.onSurface,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         hintText: 'חיפוש לקוח...',
-        hintStyle: const TextStyle(color: Colors.black38),
-        prefixIcon: const Icon(Icons.search, color: Colors.black45),
+        hintStyle: TextStyle(
+          color: Theme.of(context)
+              .colorScheme
+              .onSurface
+              .withValues(alpha: 0.4),
+        ),
+        prefixIcon: Icon(
+          Icons.search,
+          color: Theme.of(context)
+              .colorScheme
+              .onSurface
+              .withValues(alpha: 0.6),
+        ),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(Icons.clear, color: Colors.black45),
+                icon: Icon(
+                  Icons.clear,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
                 onPressed: () {
                   _searchController.clear();
                   setState(() {
@@ -578,7 +645,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
               )
             : null,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
@@ -599,7 +666,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         child: Text(
           'אין עדיין לקוחות רשומים.\nלחץ על כפתור ה- "+" להוספת לקוח.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.black45, fontSize: 14),
+          style: TextStyle(fontSize: 14),
         ),
       );
     }
@@ -609,7 +676,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         child: Text(
           'לא נמצאו לקוחות המתאימים לחיפוש זה',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.black45, fontSize: 14),
+          style: TextStyle(fontSize: 14),
         ),
       );
     }
@@ -626,29 +693,26 @@ class _CustomersScreenState extends State<CustomersScreen> {
         }).toList();
 
         return Card(
-          color: cardColor,
           surfaceTintColor: Colors.transparent,
-          elevation: 0,
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Colors.black12),
-          ),
           child: ExpansionTile(
             iconColor: accentOrange,
-            collapsedIconColor: primaryDark,
+            collapsedIconColor: Theme.of(context).colorScheme.onSurface,
             title: Text(
               customer['name']!,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 16,
               ),
             ),
             subtitle: Text(
               'ח.פ: ${customer['hp']} | טלפון: ${customer['phone']}',
-              style: const TextStyle(
-                color: Colors.black45,
+              style: TextStyle(
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.6),
                 fontSize: 13,
               ),
             ),
@@ -657,18 +721,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
             children: [
               Text(
                 'כתובת: ${customer['address']}',
-                style: const TextStyle(
-                  color: Colors.black87,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 14,
                 ),
               ),
               const SizedBox(height: 12),
               if (customerQuotes.isNotEmpty) ...[
-                const Text(
+                Text(
                   'הצעות מחיר',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 14,
                   ),
                 ),
@@ -692,7 +756,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFDF9F3),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLow,
                         borderRadius: BorderRadius.circular(8),
                         border: const Border(
                           right: BorderSide(
@@ -727,7 +793,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                       'הצעת מחיר',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: primaryDark,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
                                     fontSize: 14,
                                   ),
                                 ),
@@ -743,15 +811,19 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 'סה״כ: ₪${quote['total']}',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: primaryDark,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                   fontSize: 13,
                                 ),
                               ),
                               Text(
                                 'תאריך: ${quote['date'] ?? '—'}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                   fontSize: 13,
                                 ),
                               ),
@@ -774,8 +846,11 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                         '${items.length} פריטים',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.black54,
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.6),
                                           fontSize: 12,
                                         ),
                                       ),
@@ -809,11 +884,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                       padding: EdgeInsets.zero,
                                       constraints:
                                           const BoxConstraints(),
-                                      icon: const Icon(
+                                      icon: Icon(
                                         Icons.edit,
                                         size: 18,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.6),
                                       ),
-                                      color: Colors.blueGrey,
                                       onPressed: () =>
                                           widget.onEditQuote(quote),
                                     ),
@@ -825,8 +903,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                       icon: const Icon(
                                         Icons.share,
                                         size: 18,
+                                        color: Colors.teal,
                                       ),
-                                      color: Colors.teal,
                                       onPressed: () =>
                                           widget.onShareQuote(quote),
                                     ),
@@ -838,8 +916,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                       icon: const Icon(
                                         Icons.delete_outline,
                                         size: 18,
+                                        color: Colors.redAccent,
                                       ),
-                                      color: Colors.redAccent,
                                       onPressed: () =>
                                           _confirmDeleteQuote(quote),
                                     ),
@@ -862,7 +940,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     'הצעות מחיר במערכת: ${customerQuotes.length}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: primaryDark,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 13,
                     ),
                   ),
@@ -876,7 +954,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       ),
                       label: const Text('ריכוז חודשי (PDF)'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryDark,
+                        backgroundColor: const Color(0xFF513222),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -893,7 +971,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     ),
                 ],
               ),
-              const Divider(height: 24, color: Colors.black12),
+              const Divider(height: 24),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
@@ -940,7 +1018,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: backgroundColor,
         appBar: AppBar(
           title: Text(
             _isSelectionMode
@@ -953,7 +1030,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ),
           ),
           centerTitle: true,
-          backgroundColor: primaryDark,
+          backgroundColor: const Color(0xFF513222),
           elevation: 0,
           actions: [
             if (_isSelectionMode)

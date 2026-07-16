@@ -40,11 +40,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   bool saveToCatalog = false;
   Map<String, String>? selectedCustomer;
 
-  final Color backgroundColor = const Color(0xFFFAF7F0);
-  final Color primaryDark = const Color(0xFF513222);
   final Color accentOrange = const Color(0xFFE88432);
-  final Color cardColor = Colors.white;
-  final Color buttonColor = const Color(0xFFA6968C);
 
   @override
   void initState() {
@@ -89,7 +85,6 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
             return Directionality(
               textDirection: TextDirection.rtl,
               child: AlertDialog(
-                backgroundColor: Colors.white,
                 surfaceTintColor: Colors.transparent,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -97,7 +92,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 title: Text(
                   'הוספת פריט להצעה',
                   style: TextStyle(
-                    color: primaryDark,
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -105,24 +100,29 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // הצגת רשימת המועדפים שנוצרו על ידך בלבד
                       if (widget.catalog.isNotEmpty) ...[
                         DropdownButtonFormField<Map<String, dynamic>>(
-                          dropdownColor: Colors.white,
-                          style: const TextStyle(
-                            color: Colors.black,
+                          dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 16,
                           ),
                           alignment: Alignment.centerRight,
                           decoration: InputDecoration(
                             labelText: 'בחירה מהירה מהמועדפים שלך',
-                            labelStyle: const TextStyle(
-                              color: Colors.black54,
+                            labelStyle: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
                               fontWeight: FontWeight.bold,
                             ),
                             enabledBorder: UnderlineInputBorder(
                               borderSide: BorderSide(
-                                color: primaryDark.withValues(alpha: 0.2),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.2),
                               ),
                             ),
                             focusedBorder: UnderlineInputBorder(
@@ -137,7 +137,9 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                                 alignment: Alignment.centerRight,
                                 child: Text(
                                   "${item['name']} (₪${item['price']})",
-                                  style: const TextStyle(color: Colors.black),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
                                   textDirection: TextDirection.rtl,
                                 ),
                               ),
@@ -159,29 +161,39 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           },
                         ),
                         const SizedBox(height: 15),
-                        const Row(
+                        Row(
                           children: [
-                            Expanded(child: Divider(color: Colors.black12)),
+                            const Expanded(child: Divider()),
                             Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 8.0),
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: Text(
                                 'או הקלדת פריט חדש',
                                 style: TextStyle(
-                                  color: Colors.black38,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.4),
                                   fontSize: 12,
                                 ),
                               ),
                             ),
-                            Expanded(child: Divider(color: Colors.black12)),
+                            const Expanded(child: Divider()),
                           ],
                         ),
                       ],
                       TextField(
                         controller: nameController,
-                        style: const TextStyle(color: Colors.black),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         decoration: InputDecoration(
                           labelText: 'שם הפריט / השירות',
-                          labelStyle: const TextStyle(color: Colors.black54),
+                          labelStyle: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                           focusedBorder: UnderlineInputBorder(
                             borderSide: BorderSide(color: accentOrange),
                           ),
@@ -194,15 +206,20 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             flex: 2,
                             child: TextField(
                               controller: priceController,
-                              style: const TextStyle(color: Colors.black),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               keyboardType:
                                   const TextInputType.numberWithOptions(
                                     decimal: true,
                                   ),
                               decoration: InputDecoration(
                                 labelText: 'מחיר ליחידה',
-                                labelStyle: const TextStyle(
-                                  color: Colors.black54,
+                                labelStyle: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
                                 ),
                                 focusedBorder: UnderlineInputBorder(
                                   borderSide: BorderSide(color: accentOrange),
@@ -215,7 +232,9 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             flex: 1,
                             child: TextField(
                               controller: quantityController,
-                              style: const TextStyle(color: Colors.black),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               keyboardType: TextInputType.number,
                               onTap: () {
                                 quantityController.selection = TextSelection(
@@ -225,8 +244,11 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                               },
                               decoration: InputDecoration(
                                 labelText: 'כמות',
-                                labelStyle: const TextStyle(
-                                  color: Colors.black54,
+                                labelStyle: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
                                 ),
                                 focusedBorder: UnderlineInputBorder(
                                   borderSide: BorderSide(color: accentOrange),
@@ -248,11 +270,11 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                               });
                             },
                           ),
-                          const Text(
+                          Text(
                             'שמור מוצר זה למועדפים קבועים',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -269,9 +291,14 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       quantityController.clear();
                       Navigator.pop(context);
                     },
-                    child: const Text(
+                    child: Text(
                       'ביטול',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.6),
+                      ),
                     ),
                   ),
                   ElevatedButton(
@@ -323,7 +350,6 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: backgroundColor,
         appBar: AppBar(
           title: Text(
             widget.initialQuote != null ? 'עריכת הצעת מחיר' : 'הצעה חדשה',
@@ -334,7 +360,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
             ),
           ),
           centerTitle: true,
-          backgroundColor: primaryDark,
+          backgroundColor: const Color(0xFF513222),
           elevation: 0,
           actions: [
             Padding(
@@ -360,16 +386,22 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               const SizedBox(height: 4),
               TextField(
                 controller: titleController,
-                style: const TextStyle(color: Colors.black87),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 decoration: InputDecoration(
                   labelText: 'נושא/כותרת ההצעה',
                   hintText: 'לדוגמה: חיתוך שלטים, כרטיסי אלומיניום',
-                  hintStyle: const TextStyle(color: Colors.black38),
+                  hintStyle: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.4),
+                  ),
                   filled: true,
-                  fillColor: cardColor,
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black12),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -378,20 +410,20 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'לקוח',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: cardColor,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black12),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: widget.customers.isEmpty
                     ? Padding(
@@ -403,11 +435,14 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           children: [
                             Icon(Icons.info_outline, color: accentOrange),
                             const SizedBox(width: 10),
-                            const Expanded(
+                            Expanded(
                               child: Text(
                                 'יש להוסיף תחילה לקוחות במסך "לקוחות".',
                                 style: TextStyle(
-                                  color: Colors.black54,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
                                   fontSize: 13,
                                 ),
                               ),
@@ -430,14 +465,14 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             children: [
                               Text(
                                 selectedCustomer?['name'] ?? '-- בחר לקוח --',
-                                style: const TextStyle(
-                                  color: Colors.black87,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               Icon(
                                 Icons.keyboard_arrow_down,
-                                color: primaryDark,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ],
                           ),
@@ -450,7 +485,13 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
                     'ח.פ: ${selectedCustomer!['hp']} | כתובת: ${selectedCustomer!['address']}',
-                    style: const TextStyle(color: Colors.black45, fontSize: 12),
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
@@ -459,16 +500,21 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'פריטים בהצעה',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     '${items.length}',
-                    style: const TextStyle(color: Colors.black45),
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.6),
+                    ),
                   ),
                 ],
               ),
@@ -516,25 +562,24 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                     final item = items[index];
                     final double itemTotal = item['price'] * item['quantity'];
                     return Card(
-                      color: cardColor,
                       surfaceTintColor: Colors.transparent,
-                      elevation: 0,
                       margin: const EdgeInsets.symmetric(vertical: 4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.black12),
-                      ),
                       child: ListTile(
                         title: Text(
                           item['name'],
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         subtitle: Text(
                           '${item['quantity']} יח\' X ₪${item['price'].toStringAsFixed(2)}',
-                          style: const TextStyle(color: Colors.black45),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -543,7 +588,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                               '₪${itemTotal.toStringAsFixed(2)}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: primaryDark,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontSize: 15,
                               ),
                             ),
@@ -566,53 +611,72 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: cardColor,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.black12),
+                  border: Border.all(color: Theme.of(context).dividerColor),
                 ),
                 child: Column(
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'סכום ביניים',
-                          style: TextStyle(color: Colors.black54),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                         ),
                         Text(
                           '₪${calculateTotal().toStringAsFixed(2)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
                     ),
-                    const Divider(height: 24, color: Colors.black12),
+                    const Divider(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'הנחה',
-                          style: TextStyle(color: Colors.black54),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.6),
+                          ),
                         ),
                         Container(
                           width: 80,
                           height: 35,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: backgroundColor,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.black12),
+                            border: Border.all(
+                              color: Theme.of(context).dividerColor,
+                            ),
                           ),
-                          child: const Text(
+                          child: Text(
                             '₪ 0',
-                            style: TextStyle(color: Colors.black54),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const Divider(height: 24, color: Colors.black12),
+                    const Divider(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -620,7 +684,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           'סה"כ לתשלום',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: primaryDark,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 16,
                           ),
                         ),
@@ -639,24 +703,25 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               ),
               const SizedBox(height: 20),
 
-              const Text(
+              Text(
                 'הערות ללקוח',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 6),
               TextField(
                 controller: notesController,
                 maxLines: 3,
-                style: const TextStyle(color: Colors.black87),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 decoration: InputDecoration(
-                  fillColor: cardColor,
+                  fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                   filled: true,
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.black12),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -719,8 +784,8 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                       },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: buttonColor,
-                  foregroundColor: Colors.white,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   disabledBackgroundColor: Colors.black12,
                   disabledForegroundColor: Colors.black26,
                   elevation: 0,
@@ -757,7 +822,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   icon: const Icon(Icons.share, size: 18),
                   label: const Text('שתף כ-PDF'),
                   style: TextButton.styleFrom(
-                    foregroundColor: primaryDark,
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     minimumSize: const Size.fromHeight(40),
                   ),
                 ),
@@ -765,12 +830,15 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               // הצגת ניהול המועדפים ישירות בתחתית המסך כדי שיהיה קל למחוק פריטים ישנים מהקטלוג
               if (widget.catalog.isNotEmpty) ...[
                 const SizedBox(height: 30),
-                const Text(
+                Text(
                   'ניהול פריטים שמורים (מועדפים)',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: Colors.black54,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -781,13 +849,8 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   itemBuilder: (context, index) {
                     final catItem = widget.catalog[index];
                     return Card(
-                      color: Colors.white,
-                      elevation: 0,
+                      surfaceTintColor: Colors.transparent,
                       margin: const EdgeInsets.symmetric(vertical: 3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: const BorderSide(color: Colors.black12),
-                      ),
                       child: ListTile(
                         dense: true,
                         title: Text(
@@ -796,10 +859,13 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                         ),
                         subtitle: Text("₪${catItem['price']}"),
                         trailing: IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.delete_outline,
                             size: 18,
-                            color: Colors.black38,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.4),
                           ),
                           onPressed: () {
                             if (widget.onDeleteFromCatalog != null) {
@@ -824,20 +890,20 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF7F0),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerLow,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Text(
                 'בחר לקוח מהרשימה',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF513222),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
             ),

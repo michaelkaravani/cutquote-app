@@ -306,28 +306,34 @@ class _HomeScreenState extends State<HomeScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
+            title: Text(
               'מחיקת פריט מהקטלוג',
               style: TextStyle(
-                color: Color(0xFF513222),
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: Text(
               'האם אתה בטוח שברצונך למחוק את "$itemName" מהקטלוג?',
-              style: const TextStyle(color: Colors.black87),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'ביטול',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -429,12 +435,12 @@ class _HomeScreenState extends State<HomeScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'בחר סטטוס',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
-                    color: Color(0xFF513222),
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -448,7 +454,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     title: Text(status.label),
                     trailing: isSelected
-                        ? const Icon(Icons.check, color: Color(0xFF513222))
+                        ? Icon(Icons.check,
+                            color: Theme.of(context).colorScheme.primary)
                         : null,
                     onTap: () {
                       Navigator.pop(context);
@@ -498,28 +505,31 @@ class _HomeScreenState extends State<HomeScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
-            backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            title: const Text(
+            title: Text(
               'מחיקת הצעת מחיר',
               style: TextStyle(
-                color: Color(0xFF513222),
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
             content: const Text(
               'האם אתה בטוח שברצונך למחוק את הצעת המחיר? הפעולה אינה הפיכה.',
-              style: TextStyle(color: Colors.black87),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
+                child: Text(
                   'ביטול',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.6),
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -630,12 +640,12 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'בחר לקוח לסינון',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 18,
-                  color: Color(0xFF513222),
+                  color: Theme.of(context).colorScheme.primary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -646,7 +656,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, i) => ListTile(
                     title: Text(uniqueNames[i]),
                     trailing: _selectedCustomerFilter == uniqueNames[i]
-                        ? const Icon(Icons.check, color: Color(0xFF513222))
+                        ? Icon(Icons.check,
+                            color: Theme.of(context).colorScheme.primary)
                         : null,
                     onTap: () {
                       Navigator.pop(ctx);
@@ -672,11 +683,13 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
+      builder: (_) => Center(
         child: Card(
           child: Padding(
-            padding: EdgeInsets.all(24),
-            child: CircularProgressIndicator(color: Color(0xFFE88432)),
+            padding: const EdgeInsets.all(24),
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.secondary,
+            ),
           ),
         ),
       ),
@@ -723,19 +736,13 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
           decoration: BoxDecoration(
             color: isActive
-                ? customAccentOrange.withValues(alpha: 0.08)
-                : Colors.white,
+                ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.08)
+                : Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
             border: isActive
-                ? Border.all(color: customAccentOrange, width: 1.5)
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.secondary, width: 1.5)
                 : null,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: Column(
             children: [
@@ -748,7 +755,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: customPrimaryDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
@@ -756,7 +763,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
               ),
             ],
           ),
@@ -843,7 +856,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F0),
       appBar: AppBar(
         title: const Text(
           'CutQuote Pro',
@@ -903,22 +915,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: customPrimaryDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 'ניהול הצעות מחיר וחישובי ייצור בזמן אמת',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
               ),
               const SizedBox(height: 24),
 
-              const Text(
+              Text(
                 'פעולות מהירות',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: customPrimaryDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 12),
@@ -960,12 +978,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'הצעות מחיר אחרונות',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: customPrimaryDark,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (_selectedCustomerFilter != null || _showOnlyPending)
@@ -974,16 +992,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         _selectedCustomerFilter = null;
                         _showOnlyPending = false;
                       }),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.close,
                         size: 16,
-                        color: Color(0xFF513222),
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      label: const Text(
+                      label: Text(
                         'נקה סינון',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF513222),
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -992,36 +1010,36 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               _globalQuotes.isEmpty
                   ? Card(
-                      color: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.black12),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(16.0),
+                      surfaceTintColor: Colors.transparent,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
                         child: Center(
                           child: Text(
                             'אין עדיין הצעות מחיר שמורות. לחץ על הצעת מחיר חדשה כדי להתחיל.',
-                            style: TextStyle(color: Colors.black54),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ),
                     )
                   : _filteredQuotes.isEmpty
                   ? Card(
-                      color: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: const BorderSide(color: Colors.black12),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.all(16.0),
+                      surfaceTintColor: Colors.transparent,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
                         child: Center(
                           child: Text(
                             'לא נמצאו הצעות מחיר העונות לסינון זה',
-                            style: TextStyle(color: Colors.black54),
+                            style: TextStyle(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
                           ),
                         ),
                       ),
@@ -1047,13 +1065,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         }
 
                         return Card(
-                          color: Colors.white,
-                          elevation: 0,
+                          surfaceTintColor: Colors.transparent,
                           margin: const EdgeInsets.only(bottom: 10),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: const BorderSide(color: Colors.black12),
-                          ),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -1080,15 +1093,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                         children: [
                                           Text(
                                             '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontWeight: FontWeight.bold,
-                                              color: customPrimaryDark,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface,
                                             ),
                                           ),
                                           Text(
                                             'לקוח: $customerName',
-                                            style: const TextStyle(
-                                              color: Colors.black54,
+                                            style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.6),
                                             ),
                                           ),
                                         ],
@@ -1193,10 +1211,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                         IconButton(
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.edit,
                                             size: 18,
-                                            color: Colors.blueGrey,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.6),
                                           ),
                                           onPressed: () => _editQuote(quote),
                                         ),
@@ -1215,10 +1236,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                         IconButton(
                                           padding: EdgeInsets.zero,
                                           constraints: const BoxConstraints(),
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.delete_outline,
                                             size: 20,
-                                            color: Colors.black38,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.4),
                                           ),
                                           onPressed: () {
                                             final idx = _globalQuotes
@@ -1284,10 +1308,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFFAF7F0),
+      return Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFFE88432)),
+          child: CircularProgressIndicator(
+            color: Theme.of(context).colorScheme.secondary,
+          ),
         ),
       );
     }
@@ -1332,9 +1357,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: screens[_selectedIndex],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFFE88432),
-        unselectedItemColor: const Color(0xFF513222).withValues(alpha: 0.5),
         currentIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
