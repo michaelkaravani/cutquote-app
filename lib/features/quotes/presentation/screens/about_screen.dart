@@ -1,8 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-class AboutScreen extends StatelessWidget {
+class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
+
+  @override
+  State<AboutScreen> createState() => _AboutScreenState();
+}
+
+class _AboutScreenState extends State<AboutScreen> {
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _version = info.version);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +68,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'גרסה 1.0.0',
+                _version.isNotEmpty ? 'גרסה $_version' : '',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context)
                       .colorScheme

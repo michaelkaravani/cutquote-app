@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'customers_screen.dart';
-import 'quote_builder_screen.dart';
-import 'profile_screen.dart';
-import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/quote_status.dart';
+import 'package:cutquote/core/quote_actions.dart';
+import 'package:cutquote/core/pdf_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/csv_export_service.dart';
 import 'package:cutquote/month_picker_dialog.dart';
+import 'home/dashboard_view.dart';
+import 'customers_screen.dart';
+import 'quote_builder_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -50,8 +50,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_selectedCustomerFilter != null) {
       result = result
           .where(
-            (q) =>
-                q['customer']?['name']?.toString() == _selectedCustomerFilter,
+            (q) {
+              final c = q['customer'] as Map?;
+              if (c == null) return false;
+              final name = c['name']?.toString() ?? '';
+              final phone = c['phone']?.toString() ?? '';
+              return '$name|$phone' == _selectedCustomerFilter;
+            },
           )
           .toList();
     }
@@ -144,33 +149,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _editQuote(Map<String, dynamic> quote) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => QuoteBuilderScreen(
-          customers: _globalCustomers,
-          catalog: _globalCatalog,
-          onAddToCatalog: _addCatalogItem,
-          onSaveQuote: _saveQuote,
-          onDeleteFromCatalog: _confirmDeleteCatalogItem,
-          initialQuote: quote,
-          onUpdateQuote: _updateQuote,
-        ),
-      ),
+    QuoteActions.editQuote(
+      context: context,
+      quote: quote,
+      profile: _profile,
+      customers: _globalCustomers,
+      catalog: _globalCatalog,
+      onAddToCatalog: _addCatalogItem,
+      onSaveQuote: _saveQuote,
+      onDeleteFromCatalog: _confirmDeleteCatalogItem,
+      onUpdateQuote: _updateQuote,
     );
-  }
-
-  String _generateShareMessage(Map<String, dynamic> quote, int index) {
-    final customerName = quote['customer'] != null
-        ? (quote['customer']['name']?.toString() ?? 'לקוח')
-        : 'לקוח';
-    final quoteNumber = index + 1001;
-    final quoteTitle = quote['title']?.toString() ?? 'הצעת מחיר';
-    final total = (quote['total'] as num?)?.toDouble() ?? 0.0;
-    final totalFormatted = total.toStringAsFixed(0);
-    final senderName = _businessName.isNotEmpty ? _businessName : 'העסק';
-
-    return 'היי $customerName 👋 מצורפת הצעת מחיר מס\' $quoteNumber עבור \'$quoteTitle\' על סך $totalFormatted ₪. נשמח לאישורך כדי שנוכל להתקדם לייצור! תודה, $senderName.';
   }
 
   bool _isQuoteOverdue(Map<String, dynamic> quote) {
@@ -192,51 +181,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _callCustomer(Map<String, dynamic> quote) async {
-    final phone = quote['customer']?['phone']?.toString();
-    if (phone == null || phone.isEmpty) return;
-    final cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
-    final uri = Uri.parse('tel:$cleanPhone');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('לא ניתן לחייג למספר $cleanPhone'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
+    await QuoteActions.callCustomer(context, quote);
   }
 
   Future<void> _shareQuote(Map<String, dynamic> quote) async {
-    final index = _globalQuotes.indexOf(quote);
-    final message = _generateShareMessage(quote, index);
-
-    await Clipboard.setData(ClipboardData(text: message));
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
-
-    final customer = Map<String, String>.from(quote['customer'] ?? {});
-
-    final freshProfile = await FirestoreService.loadProfile(_uid);
-    final profile = freshProfile ?? _profile;
-
-    PdfService.generateAndShareQuote(
-      customer: customer,
-      items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
-      total: (quote['total'] as num?)?.toDouble() ?? 0.0,
-      filename: 'quote_${customer['name'] ?? 'general'}.pdf',
-      notes: quote['notes'] as String?,
-      profile: profile,
+    await QuoteActions.shareQuote(
+      context: context,
+      quote: quote,
+      allQuotes: _globalQuotes,
+      businessName: _businessName,
+      uid: _uid,
+      profile: _profile,
     );
   }
 
@@ -273,7 +228,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final docId = quote['id'] as String?;
     final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
     if (index == -1) return;
-    await _deleteQuoteByIndex(index);
+    await QuoteActions.deleteQuoteByIndex(
+      context: context,
+      uid: _uid,
+      allQuotes: _globalQuotes,
+      index: index,
+      onRemoved: (idx) {
+        setState(() {
+          _globalQuotes.removeAt(idx);
+        });
+      },
+      onRollback: (idx, q) {
+        setState(() {
+          _globalQuotes.insert(idx, q);
+        });
+      },
+    );
   }
 
   Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
@@ -403,23 +373,17 @@ class _HomeScreenState extends State<HomeScreen> {
     Map<String, dynamic> quote,
     String newStatus,
   ) async {
-    final docId = quote['id'] as String?;
-    if (docId == null) return;
-
-    try {
-      await FirestoreService.updateQuote(_uid, docId, {'status': newStatus});
-      setState(() {
-        quote['status'] = newStatus;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בעדכון סטטוס: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    await QuoteActions.updateQuoteStatus(
+      context: context,
+      uid: _uid,
+      quote: quote,
+      newStatus: newStatus,
+      onUpdated: (docId, status) {
+        setState(() {
+          quote['status'] = status;
+        });
+      },
+    );
   }
 
   void _showStatusPicker(BuildContext context, Map<String, dynamic> quote) {
@@ -475,84 +439,32 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _deleteQuoteByIndex(int index) async {
-    final quote = _globalQuotes[index];
-    final docId = quote['id'];
-
-    setState(() {
-      _globalQuotes.removeAt(index);
-    });
-
-    if (docId == null) return;
-    try {
-      await FirestoreService.deleteQuote(_uid, docId);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _globalQuotes.insert(index, quote);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה במחיקת הצעת המחיר: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
-  }
-
   void _confirmDeleteQuote(int index) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'מחיקת הצעת מחיר',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: const Text(
-              'האם אתה בטוח שברצונך למחוק את הצעת המחיר? הפעולה אינה הפיכה.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'ביטול',
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _deleteQuoteByIndex(index);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('מחיקה'),
-              ),
-            ],
-          ),
+    QuoteActions.confirmDeleteQuote(
+      context,
+      index,
+      (idx) {
+        QuoteActions.deleteQuoteByIndex(
+          context: context,
+          uid: _uid,
+          allQuotes: _globalQuotes,
+          index: idx,
+          onRemoved: (i) {
+            setState(() {
+              _globalQuotes.removeAt(i);
+            });
+          },
+          onRollback: (i, q) {
+            setState(() {
+              _globalQuotes.insert(i, q);
+            });
+          },
         );
       },
     );
   }
 
-  Future<void> _generateMonthlySummary(Map<String, String> customer) async {
+  Future<void> _consolidateCustomerQuotesAsPdf(Map<String, String> customer) async {
     final customerQuotes = _globalQuotes
         .where(
           (quote) =>
@@ -618,18 +530,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showCustomerFilterSheet() {
-    final uniqueNames =
-        _globalQuotes
-            .where(
-              (q) =>
-                  q['customer'] != null &&
-                  q['customer']['name'] != null &&
-                  q['customer']['name'].toString().trim().isNotEmpty,
-            )
-            .map((q) => q['customer']['name'].toString())
-            .toSet()
-            .toList()
-          ..sort();
+    final uniqueCustomers = <Map<String, String>>[];
+    final seen = <String>{};
+    for (final q in _globalQuotes) {
+      final c = q['customer'] as Map?;
+      if (c == null) continue;
+      final name = c['name']?.toString() ?? '';
+      if (name.trim().isEmpty) continue;
+      final phone = c['phone']?.toString() ?? '';
+      final key = '$name|$phone';
+      if (seen.add(key)) {
+        uniqueCustomers.add({'name': name, 'phone': phone, 'key': key});
+      }
+    }
+    uniqueCustomers.sort((a, b) => a['name']!.compareTo(b['name']!));
 
     showModalBottomSheet(
       context: context,
@@ -654,21 +568,27 @@ class _HomeScreenState extends State<HomeScreen> {
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  itemCount: uniqueNames.length,
-                  itemBuilder: (context, i) => ListTile(
-                    title: Text(uniqueNames[i]),
-                    trailing: _selectedCustomerFilter == uniqueNames[i]
-                        ? Icon(Icons.check,
-                            color: Theme.of(context).colorScheme.primary)
-                        : null,
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _selectedCustomerFilter = uniqueNames[i];
-                        _showOnlyPending = false;
-                      });
-                    },
-                  ),
+                  itemCount: uniqueCustomers.length,
+                  itemBuilder: (context, i) {
+                    final entry = uniqueCustomers[i];
+                    final displayName = entry['phone']!.isNotEmpty
+                        ? '${entry['name']} (${entry['phone']})'
+                        : entry['name']!;
+                    return ListTile(
+                      title: Text(displayName),
+                      trailing: _selectedCustomerFilter == entry['key']
+                          ? Icon(Icons.check,
+                              color: Theme.of(context).colorScheme.primary)
+                          : null,
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        setState(() {
+                          _selectedCustomerFilter = entry['key'];
+                          _showOnlyPending = false;
+                        });
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -721,587 +641,47 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDashboardView() {
-    Widget kpiCard(
-      IconData icon,
-      String value,
-      String label, {
-      VoidCallback? onTap,
-      bool isActive = false,
-    }) {
-      return GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isActive
-                ? Theme.of(context).colorScheme.secondary.withValues(alpha: 0.08)
-                : Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: isActive
-                ? Border.all(
-                    color: Theme.of(context).colorScheme.secondary, width: 1.5)
-                : null,
+    return DashboardView(
+      quotes: _globalQuotes,
+      filteredQuotes: _filteredQuotes,
+      businessName: _businessName,
+      selectedCustomerFilter: _selectedCustomerFilter,
+      showOnlyPending: _showOnlyPending,
+      onShowCustomerFilter: _showCustomerFilterSheet,
+      onExportMonthlyRevenue: _exportMonthlyRevenue,
+      onProfileTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ProfileScreen(),
           ),
-          child: Column(
-            children: [
-              Icon(icon, color: Theme.of(context).colorScheme.secondary, size: 22),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    String formatCurrency(double amount) {
-      final whole = amount.floor();
-      final str = whole.toString();
-      final buffer = StringBuffer();
-      int count = 0;
-      for (int i = str.length - 1; i >= 0; i--) {
-        if (count > 0 && count % 3 == 0) buffer.write(',');
-        buffer.write(str[i]);
-        count++;
-      }
-      return '₪${buffer.toString().split('').reversed.join()}';
-    }
-
-    Widget buildKpiRow() {
-      final totalQuotes = _globalQuotes.length;
-
-      final uniqueCustomers = _globalQuotes
-          .where(
-            (q) =>
-                q['customer'] != null &&
-                q['customer']['name'] != null &&
-                q['customer']['name'].toString().trim().isNotEmpty,
-          )
-          .map((q) => q['customer']['name'].toString())
-          .toSet()
-          .length;
-
-      double pendingTotal = 0;
-      for (final q in _globalQuotes) {
-        final status = q['status'] as String?;
-        if (status != QuoteStatus.paid.dbValue) {
-          pendingTotal += (q['total'] as num?)?.toDouble() ?? 0;
-        }
-      }
-
-      final formattedPending = formatCurrency(pendingTotal);
-
-      return Row(
-        children: [
-          Expanded(
-            child: kpiCard(
-              Icons.description_outlined,
-              '$totalQuotes',
-              'הצעות',
-              onTap: () => setState(() {
-                _selectedCustomerFilter = null;
-                _showOnlyPending = false;
-              }),
-              isActive: _selectedCustomerFilter == null && !_showOnlyPending,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: kpiCard(
-              Icons.people_outline,
-              '$uniqueCustomers',
-              'לקוחות',
-              onTap: _showCustomerFilterSheet,
-              isActive: _selectedCustomerFilter != null,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: kpiCard(
-              Icons.trending_up,
-              formattedPending,
-              'סה"כ פתוח',
-              onTap: () => setState(() {
-                _showOnlyPending = !_showOnlyPending;
-                _selectedCustomerFilter = null;
-              }),
-              isActive: _showOnlyPending,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'CutQuote Pro',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            fontSize: 18,
-          ),
-        ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        elevation: 0,
-        centerTitle: true,
-        leading: null,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12.0),
-            child: IconButton(
-              icon: const Icon(
-                Icons.account_circle_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfileScreen(),
-                  ),
-                ).then((_) {
-                  if (FirebaseAuth.instance.currentUser != null) {
-                    _loadAllData();
-                  }
-                });
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 4.0),
-            child: IconButton(
-              icon: const Icon(
-                Icons.file_download,
-                color: Colors.white,
-                size: 24,
-              ),
-              tooltip: 'ייצוא דוח חודשי',
-              onPressed: _exportMonthlyRevenue,
-            ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _businessName.isEmpty ? 'שלום,' : 'שלום $_businessName,',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'ניהול הצעות מחיר וחישובי ייצור בזמן אמת',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Text(
-                'פעולות מהירות',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 12),
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.3,
-                children: [
-                  _buildActionButton(
-                    title: 'הצעת מחיר חדשה',
-                    icon: Icons.calculate_rounded,
-                    color: Theme.of(context).colorScheme.secondary,
-                    onTap: () {
-                      setState(() {
-                        _selectedIndex = 1;
-                      });
-                    },
-                  ),
-                  _buildActionButton(
-                    title: 'ניהול לקוחות',
-                    icon: Icons.people_alt_rounded,
-                    color: Theme.of(context).colorScheme.primary,
-                    onTap: () {
-                      setState(() {
-                        _selectedIndex = 0;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              buildKpiRow(),
-              const SizedBox(height: 24),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'הצעות מחיר אחרונות',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  if (_selectedCustomerFilter != null || _showOnlyPending)
-                    TextButton.icon(
-                      onPressed: () => setState(() {
-                        _selectedCustomerFilter = null;
-                        _showOnlyPending = false;
-                      }),
-                      icon: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      label: Text(
-                        'נקה סינון',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _globalQuotes.isEmpty
-                  ? Card(
-                      surfaceTintColor: Colors.transparent,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: Text(
-                            'אין עדיין הצעות מחיר שמורות. לחץ על הצעת מחיר חדשה כדי להתחיל.',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : _filteredQuotes.isEmpty
-                  ? Card(
-                      surfaceTintColor: Colors.transparent,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Center(
-                          child: Text(
-                            'לא נמצאו הצעות מחיר העונות לסינון זה',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _filteredQuotes.length > 5
-                          ? 5
-                          : _filteredQuotes.length,
-                      itemBuilder: (context, index) {
-                        final quote = _filteredQuotes[index];
-                        final customerName = quote['customer'] != null
-                            ? quote['customer']['name']
-                            : 'לקוח כללי';
-
-                        double total = 0;
-                        if (quote['items'] != null) {
-                          for (var item in quote['items']) {
-                            total +=
-                                (item['price'] ?? 0) * (item['quantity'] ?? 1);
-                          }
-                        }
-
-                        return Card(
-                          surfaceTintColor: Colors.transparent,
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    CircleAvatar(
-                                      backgroundColor: Theme.of(context).colorScheme.secondary
-                                          .withValues(alpha: 0.15),
-                                      child: Icon(
-                                        Icons.description_rounded,
-                                        color: Theme.of(context).colorScheme.secondary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface,
-                                            ),
-                                          ),
-                                          Text(
-                                            'לקוח: $customerName',
-                                            style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withValues(alpha: 0.6),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '₪ ${total.toStringAsFixed(0)}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(context).colorScheme.secondary,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Flexible(
-                                      fit: FlexFit.loose,
-                                      child: GestureDetector(
-                                        onTap: () =>
-                                            _showStatusPicker(context, quote),
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _isQuoteOverdue(quote)
-                                                ? Colors.red.shade50
-                                                : QuoteStatus.fromString(
-                                                    quote['status'] as String?,
-                                                  ).displayColor.withValues(
-                                                    alpha: 0.15,
-                                                  ),
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              if (_isQuoteOverdue(quote)) ...[
-                                                Icon(
-                                                  Icons.warning_amber_rounded,
-                                                  size: 14,
-                                                  color: Colors.red.shade800,
-                                                ),
-                                                const SizedBox(width: 4),
-                                              ],
-                                              Flexible(
-                                                child: Text(
-                                                  _isQuoteOverdue(quote)
-                                                      ? 'נדרש מענה (${_overdueDays(quote)} ימים) ⏳'
-                                                      : QuoteStatus.fromString(
-                                                          quote['status']
-                                                              as String?,
-                                                        ).label,
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                    color:
-                                                        _isQuoteOverdue(quote)
-                                                        ? Colors.red.shade800
-                                                        : QuoteStatus.fromString(
-                                                            quote['status']
-                                                                as String?,
-                                                          ).displayColor,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (_isQuoteOverdue(quote) &&
-                                            quote['customer']?['phone']
-                                                    ?.toString() !=
-                                                null) ...[
-                                          IconButton(
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                            icon: const Icon(
-                                              Icons.phone,
-                                              size: 18,
-                                              color: Colors.green,
-                                            ),
-                                            onPressed: () =>
-                                                _callCustomer(quote),
-                                          ),
-                                          const SizedBox(width: 4),
-                                        ],
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: Icon(
-                                            Icons.edit,
-                                            size: 18,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.6),
-                                          ),
-                                          onPressed: () => _editQuote(quote),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: const Icon(
-                                            Icons.share,
-                                            size: 18,
-                                            color: Colors.teal,
-                                          ),
-                                          onPressed: () => _shareQuote(quote),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                          icon: Icon(
-                                            Icons.delete_outline,
-                                            size: 20,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withValues(alpha: 0.4),
-                                          ),
-                                          onPressed: () {
-                                            final idx = _globalQuotes
-                                                .indexWhere(
-                                                  (q) => q['id'] == quote['id'],
-                                                );
-                                            if (idx != -1) {
-                                              _confirmDeleteQuote(idx);
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Icon(icon, color: Colors.white, size: 32),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
+        ).then((_) {
+          if (FirebaseAuth.instance.currentUser != null) {
+            _loadAllData();
+          }
+        });
+      },
+      onClearFilter: () => setState(() {
+        _selectedCustomerFilter = null;
+        _showOnlyPending = false;
+      }),
+      onTogglePendingFilter: () => setState(() {
+        _showOnlyPending = !_showOnlyPending;
+        _selectedCustomerFilter = null;
+      }),
+      onNavigateToNewQuote: () => setState(() {
+        _selectedIndex = 1;
+      }),
+      onNavigateToCustomers: () => setState(() {
+        _selectedIndex = 0;
+      }),
+      onShowStatusPicker: _showStatusPicker,
+      isQuoteOverdue: _isQuoteOverdue,
+      overdueDays: _overdueDays,
+      onCallCustomer: _callCustomer,
+      onEditQuote: _editQuote,
+      onShareQuote: _shareQuote,
+      onConfirmDeleteQuote: _confirmDeleteQuote,
     );
   }
 
@@ -1325,7 +705,7 @@ class _HomeScreenState extends State<HomeScreen> {
         quotes: _globalQuotes,
         onCustomerAdded: _addCustomer,
         onCustomerDeleted: _deleteCustomer,
-        onGenerateSummary: _generateMonthlySummary,
+        onGenerateSummary: _consolidateCustomerQuotesAsPdf,
         onEditQuote: _editQuote,
         onShareQuote: _shareQuote,
         onDeleteQuote: _deleteQuote,

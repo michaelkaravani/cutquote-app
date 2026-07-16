@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/firestore_service.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/add_item_dialog.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/customer_picker_sheet.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/quote_summary_card.dart';
 
 class QuoteBuilderScreen extends StatefulWidget {
   final Map<String, dynamic>? profile;
@@ -31,13 +34,11 @@ class QuoteBuilderScreen extends StatefulWidget {
 
 class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   final List<Map<String, dynamic>> items = [];
-  final TextEditingController nameController = TextEditingController();
-  final TextEditingController priceController = TextEditingController();
-  final TextEditingController quantityController = TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
 
-  bool saveToCatalog = false;
+  double _discount = 0.0;
+  bool _isSaving = false;
   Map<String, String>? selectedCustomer;
 
   @override
@@ -55,6 +56,8 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
         }
       }
       titleController.text = quote['title']?.toString() ?? '';
+      notesController.text = quote['notes']?.toString() ?? '';
+      _discount = (quote['discount'] as num?)?.toDouble() ?? 0.0;
     }
   }
 
@@ -63,283 +66,72 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
     for (var item in items) {
       total += item['price'] * item['quantity'];
     }
-    return total;
+    return total - _discount;
+  }
+
+  void _editDiscount(BuildContext context) {
+    final controller = TextEditingController(text: _discount.toStringAsFixed(0));
+    showDialog(
+      context: context,
+      builder: (context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'הנחה',
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              labelText: 'סכום ההנחה בשקלים',
+              prefixIcon: const Icon(Icons.money_off, size: 20),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final value = double.tryParse(controller.text);
+                if (value != null && value >= 0) {
+                  setState(() => _discount = value);
+                }
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('אישור'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void openAddItemDialog() {
-    quantityController.text = "1";
-    quantityController.selection = TextSelection(
-      baseOffset: 0,
-      extentOffset: quantityController.text.length,
-    );
-
-    saveToCatalog = false;
-
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, dialogSetState) {
-            return Directionality(
-              textDirection: TextDirection.rtl,
-              child: AlertDialog(
-                surfaceTintColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: Text(
-                  'הוספת פריט להצעה',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (widget.catalog.isNotEmpty) ...[
-                        DropdownButtonFormField<Map<String, dynamic>>(
-                          dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 16,
-                          ),
-                          alignment: Alignment.centerRight,
-                          decoration: InputDecoration(
-                            labelText: 'בחירה מהירה מהמועדפים שלך',
-                            labelStyle: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                              fontWeight: FontWeight.bold,
-                            ),
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.2),
-                              ),
-                            ),
-                            focusedBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                            ),
-                          ),
-                          items: widget.catalog.asMap().entries.map((entry) {
-                            final item = entry.value;
-                            return DropdownMenuItem<Map<String, dynamic>>(
-                              value: item,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  "${item['name']} (₪${item['price']})",
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                  textDirection: TextDirection.rtl,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (selectedItem) {
-                            if (selectedItem != null) {
-                              dialogSetState(() {
-                                nameController.text = selectedItem['name'];
-                                priceController.text = selectedItem['price']
-                                    .toString();
-                                quantityController.text = "1";
-                                quantityController.selection = TextSelection(
-                                  baseOffset: 0,
-                                  extentOffset: quantityController.text.length,
-                                );
-                              });
-                            }
-                          },
-                        ),
-                        const SizedBox(height: 15),
-                        Row(
-                          children: [
-                            const Expanded(child: Divider()),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Text(
-                                'או הקלדת פריט חדש',
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.4),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            const Expanded(child: Divider()),
-                          ],
-                        ),
-                      ],
-                      TextField(
-                        controller: nameController,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          labelText: 'שם הפריט / השירות',
-                          labelStyle: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: TextField(
-                              controller: priceController,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: InputDecoration(
-                                labelText: 'מחיר ליחידה',
-                                labelStyle: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 15),
-                          Expanded(
-                            flex: 1,
-                            child: TextField(
-                              controller: quantityController,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                              keyboardType: TextInputType.number,
-                              onTap: () {
-                                quantityController.selection = TextSelection(
-                                  baseOffset: 0,
-                                  extentOffset: quantityController.text.length,
-                                );
-                              },
-                              decoration: InputDecoration(
-                                labelText: 'כמות',
-                                labelStyle: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                                ),
-                                focusedBorder: UnderlineInputBorder(
-                                  borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 15),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: saveToCatalog,
-                            activeColor: Theme.of(context).colorScheme.secondary,
-                            onChanged: (val) {
-                              dialogSetState(() {
-                                saveToCatalog = val ?? false;
-                              });
-                            },
-                          ),
-                          Text(
-                            'שמור מוצר זה למועדפים קבועים',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      nameController.clear();
-                      priceController.clear();
-                      quantityController.clear();
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      'ביטול',
-                      style: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (nameController.text.isEmpty) return;
-
-                      final double price =
-                          double.tryParse(priceController.text) ?? 0.0;
-                      final int quantity =
-                          int.tryParse(quantityController.text) ?? 1;
-
-                      if (saveToCatalog) {
-                        widget.onAddToCatalog({
-                          'name': nameController.text,
-                          'price': price,
-                        });
-                      }
-
-                      setState(() {
-                        items.add({
-                          'name': nameController.text,
-                          'price': price,
-                          'quantity': quantity,
-                        });
-                      });
-
-                      nameController.clear();
-                      priceController.clear();
-                      quantityController.clear();
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      foregroundColor: Colors.white,
-                    ),
-                    child: const Text('שמירה'),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (_) => AddItemDialog(
+        catalog: widget.catalog,
+        onAddToCatalog: widget.onAddToCatalog,
+        onItemAdded: (item) {
+          setState(() {
+            items.add(item);
+          });
+        },
+      ),
     );
   }
 
@@ -606,140 +398,29 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 ),
               const SizedBox(height: 20),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'סכום ביניים',
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                        Text(
-                          '₪${calculateTotal().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'הנחה',
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                        Container(
-                          width: 80,
-                          height: 35,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Theme.of(context).dividerColor,
-                            ),
-                          ),
-                          child: Text(
-                            '₪ 0',
-                            style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'סה"כ לתשלום',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          '₪${calculateTotal().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.secondary,
-                            fontSize: 20,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Text(
-                'הערות ללקוח',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: notesController,
-                maxLines: 3,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                decoration: InputDecoration(
-                  fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                  filled: true,
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                  ),
-                ),
+              QuoteSummaryCard(
+                total: calculateTotal(),
+                discount: _discount,
+                onEditDiscount: () => _editDiscount(context),
+                notesController: notesController,
               ),
               const SizedBox(height: 24),
 
               ElevatedButton(
-                onPressed: items.isEmpty
+                onPressed: items.isEmpty || _isSaving
                     ? null
-                    : () {
+                    : () async {
                         final DateTime now = DateTime.now();
                         final String formattedDate =
                             "${now.day}/${now.month}/${now.year}";
+                        final messenger = ScaffoldMessenger.of(context);
+                        final navigator = Navigator.of(context);
+
+                        setState(() => _isSaving = true);
 
                         if (widget.initialQuote != null &&
                             widget.onUpdateQuote != null) {
-                          widget.onUpdateQuote!({
+                          await widget.onUpdateQuote!({
                             'customer': selectedCustomer,
                             'items': List<Map<String, dynamic>>.from(items),
                             'total': calculateTotal(),
@@ -747,25 +428,29 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             'title': titleController.text.trim(),
                             'notes': notesController.text.trim(),
                             'id': widget.initialQuote!['id'],
+                            'discount': _discount,
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (!mounted) return;
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text(
                                 'הצעת המחיר עודכנה בהצלחה!',
                               ),
                             ),
                           );
-                          Navigator.pop(context);
+                          navigator.pop();
                         } else {
-                          widget.onSaveQuote({
+                          await widget.onSaveQuote({
                             'customer': selectedCustomer,
                             'items': List<Map<String, dynamic>>.from(items),
                             'total': calculateTotal(),
                             'date': formattedDate,
                             'title': titleController.text.trim(),
                             'notes': notesController.text.trim(),
+                            'discount': _discount,
                           });
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (!mounted) return;
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text(
                                 'הצעת המחיר נשמרה בהיסטוריה בהצלחה!',
@@ -773,6 +458,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                             ),
                           );
                           setState(() {
+                            _isSaving = false;
                             items.clear();
                             selectedCustomer = null;
                             titleController.clear();
@@ -791,10 +477,20 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'שמירת הצעה',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'שמירת הצעה',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
               const SizedBox(height: 10),
 
@@ -887,47 +583,13 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerLow,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'בחר לקוח מהרשימה',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: widget.customers.length,
-                itemBuilder: (context, index) {
-                  final customer = widget.customers[index];
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      child: const Icon(Icons.person, color: Colors.white),
-                    ),
-                    title: Text(customer['name']!),
-                    onTap: () {
-                      setState(() {
-                        selectedCustomer = customer;
-                      });
-                      Navigator.pop(context);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+      builder: (_) => CustomerPickerSheet(
+        customers: widget.customers,
+        onCustomerSelected: (customer) {
+          setState(() {
+            selectedCustomer = customer;
+          });
+        },
       ),
     );
   }

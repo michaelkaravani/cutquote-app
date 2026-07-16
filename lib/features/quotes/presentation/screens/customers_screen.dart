@@ -4,18 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
-import 'package:cutquote/core/quote_status.dart';
 import 'package:cutquote/core/firestore_service.dart';
+import 'package:cutquote/features/quotes/presentation/screens/customers/customer_expansion_card.dart';
+import 'package:cutquote/features/quotes/presentation/screens/customers/add_customer_dialog.dart';
 
 class CustomersScreen extends StatefulWidget {
   final String businessName;
   final Map<String, dynamic>? profile;
   final List<Map<String, String>> customers;
   final List<Map<String, dynamic>> quotes;
-  final Function(Map<String, String>) onCustomerAdded;
+  final Future<void> Function(Map<String, String>) onCustomerAdded;
   final Function(int) onCustomerDeleted;
   final Function(Map<String, String>) onGenerateSummary;
   final Function(Map<String, dynamic>) onEditQuote;
@@ -43,10 +43,6 @@ class CustomersScreen extends StatefulWidget {
 }
 
 class _CustomersScreenState extends State<CustomersScreen> {
-  final _nameController = TextEditingController();
-  final _hpController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -193,121 +189,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
     );
   }
 
-  Widget _buildStatusChip(Map<String, dynamic> quote) {
-    final overdue = _isQuoteOverdue(quote);
-    final status = QuoteStatus.fromString(quote['status'] as String?);
-    return GestureDetector(
-      onTap: _isSelectionMode
-          ? null
-          : () => _showStatusPicker(context, quote),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: overdue
-              ? Colors.red.shade50
-              : status.displayColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            if (overdue) ...[
-              Icon(
-                Icons.warning_amber_rounded,
-                size: 14,
-                color: Colors.red.shade800,
-              ),
-              const SizedBox(width: 4),
-            ],
-            Flexible(
-              child: Text(
-                overdue
-                    ? 'ממתין ${_overdueDays(quote)} ימים ⏳'
-                    : status.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: overdue
-                      ? Colors.red.shade800
-                      : status.displayColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showStatusPicker(
-    BuildContext context,
-    Map<String, dynamic> quote,
-  ) {
-    final currentStatus =
-        QuoteStatus.fromString(quote['status'] as String?);
-
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'בחר סטטוס',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...QuoteStatus.values.map((status) {
-                  final isSelected = status == currentStatus;
-                  return ListTile(
-                    leading: Icon(
-                      Icons.circle,
-                      color: status.displayColor,
-                      size: 20,
-                    ),
-                    title: Text(status.label),
-                    trailing: isSelected
-                        ? Icon(
-                            Icons.check,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!isSelected) {
-                        final docId = quote['id'] as String?;
-                        if (docId != null) {
-                          widget.onUpdateQuoteStatus
-                              ?.call(docId, status.dbValue);
-                          setState(() {
-                            quote['status'] = status.dbValue;
-                          });
-                        }
-                      }
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _toggleSelection(String? quoteId) {
     if (quoteId == null) return;
     setState(() {
@@ -326,24 +207,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
       _selectedQuoteIds.clear();
       _isSelectionMode = false;
     });
-  }
-
-  bool _isQuoteOverdue(Map<String, dynamic> quote) {
-    if (QuoteStatus.fromString(quote['status'] as String?) !=
-        QuoteStatus.sent) {
-      return false;
-    }
-    final createdAt = quote['createdAt'] as Timestamp?;
-    if (createdAt == null) return false;
-    return createdAt
-        .toDate()
-        .isBefore(DateTime.now().subtract(const Duration(days: 7)));
-  }
-
-  int _overdueDays(Map<String, dynamic> quote) {
-    final createdAt = quote['createdAt'] as Timestamp?;
-    if (createdAt == null) return 0;
-    return DateTime.now().difference(createdAt.toDate()).inDays;
   }
 
   Future<void> _callCustomer(Map<String, dynamic> quote) async {
@@ -449,150 +312,9 @@ class _CustomersScreenState extends State<CustomersScreen> {
   void _openAddCustomerDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'הוספת לקוח חדש',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'שם הלקוח / חברה',
-                      labelStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _hpController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'ח.פ / ת.ז',
-                      labelStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _addressController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'כתובת',
-                      labelStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _phoneController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'טלפון',
-                      labelStyle: TextStyle(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                      focusedBorder: UnderlineInputBorder(
-                        borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  _nameController.clear();
-                  _hpController.clear();
-                  _addressController.clear();
-                  _phoneController.clear();
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  'ביטול',
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (_nameController.text.isEmpty) return;
-
-                  widget.onCustomerAdded({
-                    'name': _nameController.text,
-                    'hp': _hpController.text,
-                    'address': _addressController.text,
-                    'phone': _phoneController.text,
-                  });
-
-                  _nameController.clear();
-                  _hpController.clear();
-                  _addressController.clear();
-                  _phoneController.clear();
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.secondary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('שמירה'),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => AddCustomerDialog(
+        onCustomerAdded: widget.onCustomerAdded,
+      ),
     );
   }
 
@@ -689,316 +411,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
               quote['customer']['name'] == customer['name'];
         }).toList();
 
-        return Card(
-          surfaceTintColor: Colors.transparent,
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            iconColor: Theme.of(context).colorScheme.secondary,
-            collapsedIconColor: Theme.of(context).colorScheme.onSurface,
-            title: Text(
-              customer['name']!,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 16,
-              ),
-            ),
-            subtitle: Text(
-              'ח.פ: ${customer['hp']} | טלפון: ${customer['phone']}',
-              style: TextStyle(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.6),
-                fontSize: 13,
-              ),
-            ),
-            childrenPadding: const EdgeInsets.all(16),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'כתובת: ${customer['address']}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurface,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (customerQuotes.isNotEmpty) ...[
-                Text(
-                  'הצעות מחיר',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: customerQuotes.map((quote) {
-                    final items =
-                        quote['items'] as List<dynamic>? ?? [];
-                    return GestureDetector(
-                      onLongPress: () =>
-                          _toggleSelection(quote['id']),
-                      onTap: _isSelectionMode
-                          ? () => _toggleSelection(quote['id'])
-                          : null,
-                      child: Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border(
-                          right: BorderSide(
-                            color: Theme.of(context).colorScheme.secondary,
-                            width: 4,
-                          ),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              if (_isSelectionMode)
-                                Checkbox(
-                                  value: _selectedQuoteIds.contains(
-                                    quote['id'],
-                                  ),
-                                  onChanged: (_) =>
-                                      _toggleSelection(quote['id']),
-                                  activeColor: Theme.of(context).colorScheme.secondary,
-                                  materialTapTargetSize:
-                                      MaterialTapTargetSize
-                                          .shrinkWrap,
-                                  visualDensity:
-                                      VisualDensity.compact,
-                                ),
-                              Expanded(
-                                child: Text(
-                                  quote['title']?.toString() ??
-                                      'הצעת מחיר',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'סה״כ: ₪${quote['total']}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              Text(
-                                'תאריך: ${quote['date'] ?? '—'}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Flexible(
-                                fit: FlexFit.loose,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildStatusChip(quote),
-                                    const SizedBox(width: 8),
-                                    Flexible(
-                                      child: Text(
-                                        '${items.length} פריטים',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.6),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (!_isSelectionMode)
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (_isQuoteOverdue(quote) &&
-                                        quote['customer']?['phone']
-                                                ?.toString() !=
-                                            null) ...[
-                                      IconButton(
-                                        padding: EdgeInsets.zero,
-                                        constraints:
-                                            const BoxConstraints(),
-                                        icon: const Icon(
-                                          Icons.phone,
-                                          size: 18,
-                                          color: Colors.green,
-                                        ),
-                                        onPressed: () =>
-                                            _callCustomer(quote),
-                                      ),
-                                      const SizedBox(width: 4),
-                                    ],
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints(),
-                                      icon: Icon(
-                                        Icons.edit,
-                                        size: 18,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                      onPressed: () =>
-                                          widget.onEditQuote(quote),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints(),
-                                      icon: const Icon(
-                                        Icons.share,
-                                        size: 18,
-                                        color: Colors.teal,
-                                      ),
-                                      onPressed: () =>
-                                          widget.onShareQuote(quote),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    IconButton(
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints(),
-                                      icon: const Icon(
-                                        Icons.delete_outline,
-                                        size: 18,
-                                        color: Colors.redAccent,
-                                      ),
-                                      onPressed: () =>
-                                          _confirmDeleteQuote(quote),
-                                    ),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                  }).toList(),
-                ),
-                const SizedBox(height: 8),
-              ],
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'הצעות מחיר במערכת: ${customerQuotes.length}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: 13,
-                    ),
-                  ),
-                  if (customerQuotes.isNotEmpty)
-                    ElevatedButton.icon(
-                      onPressed: () =>
-                          widget.onGenerateSummary(customer),
-                      icon: const Icon(
-                        Icons.picture_as_pdf,
-                        size: 16,
-                      ),
-                      label: const Text('ריכוז חודשי (PDF)'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const Divider(height: 24),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: () => _confirmDeleteCustomer(
-                    index,
-                    customer['name'] ?? '',
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    textDirection: TextDirection.ltr,
-                    children: [
-                      const Icon(
-                        Icons.delete,
-                        color: Colors.redAccent,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'מחק לקוח',
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+        return CustomerExpansionCard(
+          customer: customer,
+          quotes: customerQuotes,
+          index: index,
+          isSelectionMode: _isSelectionMode,
+          selectedQuoteIds: _selectedQuoteIds,
+          onToggleSelection: _toggleSelection,
+          onCallCustomer: _callCustomer,
+          onEditQuote: widget.onEditQuote,
+          onShareQuote: widget.onShareQuote,
+          onDeleteQuote: _confirmDeleteQuote,
+          onUpdateQuoteStatus: widget.onUpdateQuoteStatus,
+          onGenerateSummary: widget.onGenerateSummary,
+          onConfirmDeleteCustomer: _confirmDeleteCustomer,
         );
       },
     );

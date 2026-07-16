@@ -7,10 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/app_theme.dart';
 import 'package:cutquote/core/theme_notifier.dart';
-import 'package:cutquote/core/pdf_template_notifier.dart';
+import 'package:cutquote/features/quotes/presentation/screens/profile/logo_picker.dart';
+import 'package:cutquote/features/quotes/presentation/screens/profile/theme_picker.dart';
+import 'package:cutquote/features/quotes/presentation/screens/profile/pdf_template_chooser.dart';
 import 'about_screen.dart';
 import 'login_screen.dart';
-import 'pdf_templates_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -82,6 +83,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('התנתקות'),
+          content: const Text('האם אתה בטוח שברצונך להתנתק?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('התנתק'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
     await FirebaseAuth.instance.signOut();
 
     if (!mounted) return;
@@ -168,189 +199,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case ThemeMode.dark:
         return 'מצב כהה';
     }
-  }
-
-  String _pdfTemplateLabel(String template) {
-    switch (template) {
-      case 'premium_dark':
-        return 'יוקרתי כהה';
-      case 'clean_corporate':
-        return 'תאגידי נקי';
-      case 'natural_craft':
-        return 'קראפטי טבעי';
-      case 'minimal_stone':
-        return 'מינימל אבן';
-      case 'modern_bordeaux':
-        return 'מודרני בורדו';
-      default:
-        return 'יוקרתי כהה';
-    }
-  }
-
-  void _showThemePicker() {
-    final currentMode = themeNotifier.themeMode;
-    final currentStyle = themeNotifier.themeStyle;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ערכת נושא',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Theme.of(ctx).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'סגנון צבע',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Theme.of(ctx)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: ThemeStyle.values.map((style) {
-                  final isSelected = style == currentStyle;
-                  return Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        themeNotifier.setThemeStyle(style);
-                        Navigator.pop(ctx);
-                        _showThemePicker();
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12,
-                          horizontal: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? Theme.of(ctx)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.1)
-                              : Theme.of(ctx)
-                                  .colorScheme
-                                  .surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? Theme.of(ctx).colorScheme.primary
-                                : Theme.of(ctx)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.15),
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              style.icon,
-                              color: isSelected
-                                  ? Theme.of(ctx).colorScheme.primary
-                                  : Theme.of(ctx)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                              size: 28,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              style.label,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                color: isSelected
-                                    ? Theme.of(ctx).colorScheme.primary
-                                    : Theme.of(ctx)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'מצב תצוגה',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                  color: Theme.of(ctx)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-              const SizedBox(height: 8),
-              _themeModeOption(
-                ctx,
-                icon: Icons.brightness_auto,
-                label: 'ברירת מחדל של המערכת',
-                mode: ThemeMode.system,
-                isSelected: currentMode == ThemeMode.system,
-              ),
-              _themeModeOption(
-                ctx,
-                icon: Icons.light_mode,
-                label: 'מצב בהיר',
-                mode: ThemeMode.light,
-                isSelected: currentMode == ThemeMode.light,
-              ),
-              _themeModeOption(
-                ctx,
-                icon: Icons.dark_mode,
-                label: 'מצב כהה',
-                mode: ThemeMode.dark,
-                isSelected: currentMode == ThemeMode.dark,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _themeModeOption(
-    BuildContext ctx, {
-    required IconData icon,
-    required String label,
-    required ThemeMode mode,
-    required bool isSelected,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: Theme.of(ctx).colorScheme.primary),
-      title: Text(label),
-      trailing: isSelected
-          ? Icon(Icons.check, color: Theme.of(ctx).colorScheme.primary)
-          : null,
-      onTap: () {
-        Navigator.pop(ctx);
-        themeNotifier.setThemeMode(mode);
-      },
-    );
   }
 
   Future<void> _pickLogo() async {
@@ -566,6 +414,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .colorScheme
                                 .surfaceContainerLow,
                           ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'אנא הזן אחוז מע"מ';
+                            }
+                            final vat = double.tryParse(value.trim());
+                            if (vat == null || vat < 0 || vat > 100) {
+                              return 'אחוז לא תקין (0-100)';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -580,44 +438,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: _logoPath != null &&
-                                      File(_logoPath!).existsSync()
-                                  ? Image.file(
-                                      File(_logoPath!),
-                                      width: 64,
-                                      height: 64,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              _defaultLogoPreview(),
-                                    )
-                                  : _defaultLogoPreview(),
-                            ),
-                            if (_isEditing) ...[
-                              const SizedBox(width: 12),
-                              TextButton.icon(
-                                onPressed: _pickLogo,
-                                icon: const Icon(Icons.image, size: 18),
-                                label: const Text('בחר לוגו'),
-                              ),
-                              if (_logoPath != null) ...[
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  onPressed: () =>
-                                      setState(() => _logoPath = null),
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 18,
-                                    color: Colors.redAccent,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ],
+                        LogoPicker(
+                          logoPath: _logoPath,
+                          isEditing: _isEditing,
+                          onPickLogo: _pickLogo,
+                          onClearLogo: () =>
+                              setState(() => _logoPath = null),
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -742,49 +568,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           .onSurface
                           .withValues(alpha: 0.6),
                     ),
-                    onTap: _showThemePicker,
+                    onTap: () => ThemePicker.show(context),
                   ),
                 ),
                 const SizedBox(height: 24),
-                Card(
-                  surfaceTintColor: Colors.transparent,
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.description_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                    title: const Text(
-                      'תבניות PDF',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      _pdfTemplateLabel(pdfTemplateNotifier.currentTemplate),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
-                      ),
-                    ),
-                    trailing: Icon(
-                      Icons.arrow_back_ios_new,
-                      size: 16,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PdfTemplatesScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                const PdfTemplateChooser(),
                 const SizedBox(height: 24),
                 Card(
                   surfaceTintColor: Colors.transparent,
@@ -852,22 +640,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _defaultLogoPreview() {
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        Icons.business_rounded,
-        size: 32,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
 }

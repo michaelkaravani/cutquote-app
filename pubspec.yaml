@@ -32,7 +32,6 @@ dependencies:
   package_info_plus: ^8.0.0
   flutter:
     sdk: flutter
-  flutter_launcher_icons: "^0.13.1"
   pdf: ^3.11.1
   printing: ^5.13.2
   share_plus: ^10.0.0
@@ -61,6 +60,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.13.1"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
