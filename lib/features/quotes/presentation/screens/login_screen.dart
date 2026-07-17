@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -189,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isLoading
                         ? null
                         : () async {
-                            if (_registerFormKey.currentState!.validate()) {
+                            if (_registerFormKey.currentState?.validate() ?? false) {
                               dialogSetState(() {
                                 _isLoading = true;
                               });
@@ -208,13 +207,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                         .createUserWithEmailAndPassword(
                                           email: _regEmailController.text
                                               .trim(),
-                                          password: _regPasswordController.text
-                                              .trim(),
+                                          password: _regPasswordController
+                                              .text,
                                         );
 
                                 if (userCredential.user != null) {
-                                  await userCredential.user!
-                                      .sendEmailVerification();
+                                  await userCredential.user
+                                      ?.sendEmailVerification();
                                   await FirebaseAuth.instance.signOut();
                                 }
 
@@ -247,10 +246,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 );
                               } finally {
-                                if (mounted) {
+                                if (dialogContext.mounted) {
                                   dialogSetState(() {
                                     _isLoading = false;
                                   });
+                                } else {
+                                  _isLoading = false;
                                 }
                               }
                             }
@@ -356,7 +357,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState?.validate() ?? false) {
       setState(() {
         _isLoading = true;
       });
@@ -387,12 +388,7 @@ class _LoginScreenState extends State<LoginScreen> {
           return;
         }
 
-        // פתרון שגיאה מספר 6: וידוא mounted סופי לפני ניתוב ומעבר למסך הראשי
         if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
       } on FirebaseAuthException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

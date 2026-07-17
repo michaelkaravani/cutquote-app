@@ -34,7 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
 
-  String get _uid => FirebaseAuth.instance.currentUser!.uid;
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
   String get _email => FirebaseAuth.instance.currentUser?.email ?? '';
 
   @override
@@ -55,14 +55,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
     try {
       final profile = await FirestoreService.loadProfile(_uid);
       if (!mounted) return;
       setState(() {
         _businessNameController.text = profile?['businessName'] ?? '';
         _phoneController.text = profile?['phone'] ?? '';
-        _vatRateController.text = (profile?['vatRate'] ?? 0.18).toString();
+        _vatRateController.text = (((profile?['vatRate'] as num?)?.toDouble() ?? 0.18) * 100).toStringAsFixed(1);
+
         _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
         _paymentTermsController.text = profile?['paymentTerms'] ?? '';
         _logoPath = profile?['logoPath'] as String?;
@@ -124,7 +128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -137,10 +141,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirestoreService.saveProfile(_uid, {
         'businessName': _businessNameController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'vatRate': double.tryParse(_vatRateController.text) ?? 0.18,
+        'vatRate': (double.tryParse(_vatRateController.text) ?? 18) / 100,
         'logoPath': _logoPath,
         'defaultPdfNotes': _pdfNotesController.text.trim(),
         'paymentTerms': _paymentTermsController.text.trim(),
+        'email': FirebaseAuth.instance.currentUser?.email ?? '',
       });
 
       if (!mounted) return;
@@ -215,6 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final fileName = 'business_logo_${DateTime.now().millisecondsSinceEpoch}.${picked.path.split('.').last}';
       final savedPath = '${dir.path}/$fileName';
       await File(picked.path).copy(savedPath);
+      if (!mounted) return;
 
       setState(() {
         _logoPath = savedPath;
@@ -385,6 +391,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .colorScheme
                                 .surfaceContainerLow,
                           ),
+                          validator: (value) {
+                            if (value != null && value.isNotEmpty && !RegExp(r'^[\d+\- ]+$').hasMatch(value)) {
+                              return 'מספר טלפון לא תקין';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 24),
                         Text(
@@ -396,6 +408,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 .onSurface
                                 .withValues(alpha: 0.8),
                             fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'לדוגמה: 18',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
                           ),
                         ),
                         TextFormField(
@@ -550,14 +573,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       'ערכת נושא',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(
-                      '${themeNotifier.themeStyle.label} • ${_themeModeLabel(themeNotifier.themeMode)}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withValues(alpha: 0.6),
+                    subtitle: ListenableBuilder(
+                      listenable: themeNotifier,
+                      builder: (context, _) => Text(
+                        '${themeNotifier.themeStyle.label} • ${_themeModeLabel(themeNotifier.themeMode)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.6),
+                        ),
                       ),
                     ),
                     trailing: Icon(

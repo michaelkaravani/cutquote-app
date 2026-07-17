@@ -1,11 +1,13 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/customers/customer_expansion_card.dart';
 import 'package:cutquote/features/quotes/presentation/screens/customers/add_customer_dialog.dart';
@@ -53,7 +55,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
     final quoteNumbers = <String, int>{};
     for (int i = 0; i < widget.quotes.length; i++) {
-      quoteNumbers[widget.quotes[i]['id']] = i + 1001;
+      final id = widget.quotes[i]['id'];
+      if (id != null) quoteNumbers[id] = i + 1001;
     }
 
     return widget.customers.where((customer) {
@@ -61,8 +64,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
       if ((customer['phone'] ?? '').contains(query)) return true;
 
       for (final quote in widget.quotes) {
-        if (quote['customer'] == null) continue;
-        final quoteCustomer = quote['customer'] as Map;
+        final quoteCustomer = quote['customer'] as Map?;
+        if (quoteCustomer == null) continue;
         if (quoteCustomer['name'] != customer['name']) continue;
 
         final title = (quote['title']?.toString() ?? '').toLowerCase();
@@ -203,6 +206,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   void _exitSelectionMode() {
+    if (!mounted) return;
     setState(() {
       _selectedQuoteIds.clear();
       _isSelectionMode = false;
@@ -259,21 +263,23 @@ class _CustomersScreenState extends State<CustomersScreen> {
       if (uid == null) return;
       final freshProfile =
           await FirestoreService.loadProfile(uid);
+      if (!mounted) return;
       final profile = freshProfile ?? widget.profile;
 
       final files = <XFile>[];
-      final tempDir = Directory.systemTemp;
+      final tempDir = await getTemporaryDirectory();
 
       for (int i = 0; i < selected.length; i++) {
         final q = selected[i];
         final bytes = await PdfService.generateQuotePdfBytes(
-          customer: q['customer'] != null
+          customer: q['customer'] is Map
               ? Map<String, String>.from(q['customer'] as Map)
               : null,
           items: List<Map<String, dynamic>>.from(q['items'] ?? []),
           total: (q['total'] as num?)?.toDouble() ?? 0.0,
           notes: q['notes'] as String?,
           profile: profile,
+          templateStyle: pdfTemplateNotifier.currentTemplate,
         );
 
         final title = q['title']?.toString() ?? 'הצעת מחיר';
@@ -287,6 +293,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       }
 
       await Share.shareXFiles(files);
+      if (!mounted) return;
 
       for (final f in files) {
         final file = File(f.path);
@@ -407,11 +414,14 @@ class _CustomersScreenState extends State<CustomersScreen> {
         final customer = _filteredCustomers[index];
 
         final customerQuotes = widget.quotes.where((quote) {
-          return quote['customer'] != null &&
-              quote['customer']['name'] == customer['name'];
+          final qc = quote['customer'] as Map?;
+          if (qc == null) return false;
+          return (qc['name'] ?? '') == (customer['name'] ?? '') &&
+              (qc['phone'] ?? '') == (customer['phone'] ?? '');
         }).toList();
 
         return CustomerExpansionCard(
+          key: ValueKey(customer['name'] ?? index),
           customer: customer,
           quotes: customerQuotes,
           index: index,

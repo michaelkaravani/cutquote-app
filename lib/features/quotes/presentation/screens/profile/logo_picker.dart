@@ -41,8 +41,7 @@ class LogoPicker extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: logoPath != null &&
-                  File(logoPath!).existsSync()
+          child: logoPath != null
               ? Image.file(
                   File(logoPath!),
                   width: 64,

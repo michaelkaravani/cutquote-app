@@ -3,7 +3,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 Map<String, dynamic> extractProfile(Map<String, dynamic>? profile) {
   return {
-    'businessName': profile?['businessName'] as String? ?? 'מיכאל פרסיז\'ן ארט',
+    'businessName': profile?['businessName'] as String? ?? 'העסק',
     'phone': profile?['phone'] as String? ?? '',
     'email': profile?['email'] as String? ?? '',
     'logoPath': profile?['logoPath'] as String?,

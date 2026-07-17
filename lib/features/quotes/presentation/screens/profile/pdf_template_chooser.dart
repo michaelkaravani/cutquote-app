@@ -35,14 +35,17 @@ class PdfTemplateChooser extends StatelessWidget {
           'תבניות PDF',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(
-          _label(pdfTemplateNotifier.currentTemplate),
-          style: TextStyle(
-            fontSize: 13,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withValues(alpha: 0.6),
+        subtitle: ListenableBuilder(
+          listenable: pdfTemplateNotifier,
+          builder: (context, _) => Text(
+            _label(pdfTemplateNotifier.currentTemplate),
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSurface
+                  .withValues(alpha: 0.6),
+            ),
           ),
         ),
         trailing: Icon(

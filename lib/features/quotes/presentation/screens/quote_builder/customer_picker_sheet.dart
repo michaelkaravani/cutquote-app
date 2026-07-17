@@ -36,11 +36,12 @@ class CustomerPickerSheet extends StatelessWidget {
               itemBuilder: (context, index) {
                 final customer = customers[index];
                 return ListTile(
+                  key: ValueKey(customer['name'] ?? index),
                   leading: CircleAvatar(
                     backgroundColor: Theme.of(context).colorScheme.secondary,
                     child: const Icon(Icons.person, color: Colors.white),
                   ),
-                  title: Text(customer['name']!),
+                  title: Text(customer['name'] ?? ''),
                   onTap: () {
                     onCustomerSelected(customer);
                     Navigator.pop(context);

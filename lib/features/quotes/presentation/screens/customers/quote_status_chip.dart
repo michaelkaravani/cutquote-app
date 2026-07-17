@@ -86,9 +86,6 @@ class _QuoteStatusChipState extends State<QuoteStatusChip> {
                         if (docId != null) {
                           widget.onUpdateQuoteStatus
                               ?.call(docId, status.dbValue);
-                          setState(() {
-                            widget.quote['status'] = status.dbValue;
-                          });
                         }
                       }
                     },

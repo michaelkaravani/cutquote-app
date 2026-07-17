@@ -36,8 +36,16 @@ Future<Uint8List> buildPremiumDarkPdf({
   final showPaymentTerms = paymentTerms.isNotEmpty;
   final showNotes = cleanNotes.isNotEmpty || defaultTerms.isNotEmpty;
 
-  final beforeVat = total / (1.0 + vatRate);
-  final vatAmount = total - beforeVat;
+  final vatAmount = total * vatRate;
+  final totalWithVat = total + vatAmount;
+
+  Uint8List? logoBytes;
+  if (logoPath != null) {
+    try {
+      final logoFile = File(logoPath);
+      logoBytes = await logoFile.readAsBytes();
+    } catch (_) {}
+  }
 
   pdf.addPage(
     pw.Page(
@@ -66,7 +74,7 @@ Future<Uint8List> buildPremiumDarkPdf({
                     pw.Row(
                       crossAxisAlignment: pw.CrossAxisAlignment.center,
                       children: [
-                        if (logoPath != null && File(logoPath).existsSync())
+                        if (logoBytes != null)
                           pw.Container(
                             margin: const pw.EdgeInsets.only(left: 14),
                             padding: const pw.EdgeInsets.all(2),
@@ -76,7 +84,7 @@ Future<Uint8List> buildPremiumDarkPdf({
                             ),
                             child: pw.ClipOval(
                               child: pw.Image(
-                                pw.MemoryImage(File(logoPath).readAsBytesSync()),
+                                pw.MemoryImage(logoBytes),
                                 width: 44,
                                 height: 44,
                               ),
@@ -282,7 +290,7 @@ Future<Uint8List> buildPremiumDarkPdf({
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFAAAAAA))),
-                          pw.Text('₪${beforeVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                          pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
                         ],
                       ),
                       pw.SizedBox(height: 4),
@@ -301,7 +309,7 @@ Future<Uint8List> buildPremiumDarkPdf({
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: brandGold)),
-                          pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandGold)),
+                          pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandGold)),
                         ],
                       ),
                     ],

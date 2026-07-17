@@ -3,12 +3,14 @@ import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/quote_status.dart';
 import 'package:cutquote/core/quote_actions.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/csv_export_service.dart';
 import 'package:cutquote/month_picker_dialog.dart';
 import 'home/dashboard_view.dart';
 import 'customers_screen.dart';
+import 'customers/quote_status_chip.dart';
 import 'quote_builder_screen.dart';
 import 'profile_screen.dart';
 
@@ -65,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // מזהה המשתמש המחובר - כל הנתונים מבודדים תחת ה-uid הזה ב-Firestore
-  String get _uid => FirebaseAuth.instance.currentUser!.uid;
+  String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
@@ -107,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _addCustomer(Map<String, String> newCustomer) async {
     try {
       final id = await FirestoreService.addCustomer(_uid, newCustomer);
+      if (!mounted) return;
       final withId = Map<String, String>.from(newCustomer)..['id'] = id;
       setState(() {
         _globalCustomers.add(withId);
@@ -137,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       // מחזירים את הלקוח לרשימה אם המחיקה בענן נכשלה
       setState(() {
-        _globalCustomers.insert(index, customer);
+        _globalCustomers.insert(index.clamp(0, _globalCustomers.length), customer);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -162,23 +165,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _isQuoteOverdue(Map<String, dynamic> quote) {
-    if (QuoteStatus.fromString(quote['status'] as String?) !=
-        QuoteStatus.sent) {
-      return false;
-    }
-    final createdAt = quote['createdAt'] as Timestamp?;
-    if (createdAt == null) return false;
-    return createdAt.toDate().isBefore(
-      DateTime.now().subtract(const Duration(days: 7)),
-    );
-  }
+  bool _isQuoteOverdue(Map<String, dynamic> quote) =>
+      QuoteStatusChip.isQuoteOverdue(quote);
 
-  int _overdueDays(Map<String, dynamic> quote) {
-    final createdAt = quote['createdAt'] as Timestamp?;
-    if (createdAt == null) return 0;
-    return DateTime.now().difference(createdAt.toDate()).inDays;
-  }
+  int _overdueDays(Map<String, dynamic> quote) =>
+      QuoteStatusChip.overdueDays(quote);
 
   Future<void> _callCustomer(Map<String, dynamic> quote) async {
     await QuoteActions.callCustomer(context, quote);
@@ -203,13 +194,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       await FirestoreService.updateQuote(_uid, docId, dataToSave);
+      if (!mounted) return;
       final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
       if (index != -1) {
         setState(() {
           _globalQuotes[index] = Map<String, dynamic>.from(updatedQuote);
         });
       }
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('הצעת המחיר עודכנה בהצלחה!')),
       );
@@ -221,6 +212,7 @@ class _HomeScreenState extends State<HomeScreen> {
           backgroundColor: Colors.redAccent,
         ),
       );
+
     }
   }
 
@@ -249,12 +241,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
     final exists = _globalCatalog.any(
       (item) =>
-          item['name'].toString().trim() == newItem['name'].toString().trim(),
+          (item['name'] ?? '').toString().trim() == (newItem['name'] ?? '').toString().trim(),
     );
     if (exists) return;
 
     try {
       final id = await FirestoreService.addCatalogItem(_uid, newItem);
+      if (!mounted) return;
       final withId = Map<String, dynamic>.from(newItem)..['id'] = id;
       setState(() {
         _globalCatalog.add(withId);
@@ -354,7 +347,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _saveQuote(Map<String, dynamic> newQuote) async {
     try {
       final id = await FirestoreService.addQuote(_uid, newQuote);
-      final withId = Map<String, dynamic>.from(newQuote)..['id'] = id;
+      if (!mounted) return;
+      final withId = Map<String, dynamic>.from(newQuote)
+        ..['id'] = id
+        ..['createdAt'] = Timestamp.now();
       setState(() {
         _globalQuotes.add(withId);
       });
@@ -467,9 +463,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _consolidateCustomerQuotesAsPdf(Map<String, String> customer) async {
     final customerQuotes = _globalQuotes
         .where(
-          (quote) =>
-              quote['customer'] != null &&
-              quote['customer']['name'] == customer['name'],
+          (quote) {
+            final qc = quote['customer'] as Map?;
+            if (qc == null) return false;
+            return qc['name'] == customer['name'] &&
+                qc['phone'] == customer['phone'];
+          },
         )
         .toList();
 
@@ -489,15 +488,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
     for (var quote in customerQuotes) {
       final List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
-        quote['items'],
+        quote['items'] ?? [],
       );
       for (var item in items) {
-        final String name = item['name'];
-        final int quantity = item['quantity'];
-        final double price = item['price'];
+        final String name = (item['name'] as String?) ?? '';
+        final int quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        final double price = (item['price'] as num?)?.toDouble() ?? 0.0;
 
         if (consolidatedItems.containsKey(name)) {
-          consolidatedItems[name]!['quantity'] += quantity;
+          final existing = consolidatedItems[name]!;
+          existing['quantity'] = ((existing['quantity'] as num?)?.toInt() ?? 0) + quantity;
         } else {
           consolidatedItems[name] = {
             'name': name,
@@ -513,19 +513,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     double finalTotal = 0;
     for (var item in finalItems) {
-      finalTotal += item['price'] * item['quantity'];
+      finalTotal += ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 0);
     }
 
     final freshProfile = await FirestoreService.loadProfile(_uid);
+    if (!mounted) return;
     final profile = freshProfile ?? _profile;
 
-    PdfService.generateAndShareQuote(
+    await PdfService.generateAndShareQuote(
       customer: customer,
       items: finalItems,
       total: finalTotal,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
       notes: null,
       profile: profile,
+      templateStyle: pdfTemplateNotifier.currentTemplate,
     );
   }
 
@@ -543,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
         uniqueCustomers.add({'name': name, 'phone': phone, 'key': key});
       }
     }
-    uniqueCustomers.sort((a, b) => a['name']!.compareTo(b['name']!));
+    uniqueCustomers.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
 
     showModalBottomSheet(
       context: context,
@@ -571,10 +573,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: uniqueCustomers.length,
                   itemBuilder: (context, i) {
                     final entry = uniqueCustomers[i];
-                    final displayName = entry['phone']!.isNotEmpty
-                        ? '${entry['name']} (${entry['phone']})'
-                        : entry['name']!;
+                    final displayName = (entry['phone'] ?? '').isNotEmpty
+                        ? '${entry['name'] ?? ''} (${entry['phone'] ?? ''})'
+                        : entry['name'] ?? '';
                     return ListTile(
+                      key: ValueKey(entry['key'] ?? i),
                       title: Text(displayName),
                       trailing: _selectedCustomerFilter == entry['key']
                           ? Icon(Icons.check,
@@ -709,14 +712,26 @@ class _HomeScreenState extends State<HomeScreen> {
         onEditQuote: _editQuote,
         onShareQuote: _shareQuote,
         onDeleteQuote: _deleteQuote,
-        onUpdateQuoteStatus: (quoteId, newStatus) {
-          FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
-          setState(() {
-            final idx = _globalQuotes.indexWhere((q) => q['id'] == quoteId);
-            if (idx != -1) {
-              _globalQuotes[idx]['status'] = newStatus;
-            }
-          });
+        onUpdateQuoteStatus: (quoteId, newStatus) async {
+          final messenger = ScaffoldMessenger.of(context);
+          try {
+            await FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
+            if (!mounted) return;
+            setState(() {
+              final idx = _globalQuotes.indexWhere((q) => q['id'] == quoteId);
+              if (idx != -1) {
+                _globalQuotes[idx]['status'] = newStatus;
+              }
+            });
+          } catch (e) {
+            if (!mounted) return;
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('שגיאה בעדכון סטטוס: $e'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
         },
       ),
       QuoteBuilderScreen(

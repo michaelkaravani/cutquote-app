@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder_screen.dart';
 
@@ -64,9 +65,7 @@ class QuoteActions {
     required Map<String, dynamic>? profile,
   }) async {
     final index = allQuotes.indexWhere((q) => q['id'] == quote['id']);
-    final customerName = quote['customer'] != null
-        ? (quote['customer']['name']?.toString() ?? 'לקוח')
-        : 'לקוח';
+    final customerName = (quote['customer'] as Map?)?['name']?.toString() ?? 'לקוח';
     final quoteNumber = index + 1001;
     final quoteTitle = quote['title']?.toString() ?? 'הצעת מחיר';
     final total = (quote['total'] as num?)?.toDouble() ?? 0.0;
@@ -91,13 +90,14 @@ class QuoteActions {
     if (!context.mounted) return;
     final effectiveProfile = freshProfile ?? profile;
 
-    PdfService.generateAndShareQuote(
+    await PdfService.generateAndShareQuote(
       customer: customer,
       items: List<Map<String, dynamic>>.from(quote['items'] ?? []),
       total: (quote['total'] as num?)?.toDouble() ?? 0.0,
       filename: 'quote_${customer['name'] ?? 'general'}.pdf',
       notes: quote['notes'] as String?,
       profile: effectiveProfile,
+      templateStyle: pdfTemplateNotifier.currentTemplate,
     );
   }
 
@@ -113,6 +113,7 @@ class QuoteActions {
 
     try {
       await FirestoreService.updateQuote(uid, docId, {'status': newStatus});
+      if (!context.mounted) return;
       onUpdated(docId, newStatus);
     } catch (e) {
       if (!context.mounted) return;
@@ -140,8 +141,8 @@ class QuoteActions {
     try {
       await FirestoreService.deleteQuote(uid, docId);
     } catch (e) {
-      onRollback(index, quote);
       if (!context.mounted) return;
+      onRollback(index, quote);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('שגיאה במחיקת הצעת המחיר: $e'),

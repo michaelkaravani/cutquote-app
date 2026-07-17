@@ -97,10 +97,14 @@ class PdfService {
       profile: profile,
       templateStyle: templateStyle,
     );
+    final businessName = (profile?['businessName'] as String?)?.trim();
+    final senderName = (businessName != null && businessName.isNotEmpty)
+        ? businessName
+        : 'העסק';
     final output = await getTemporaryDirectory();
     final file = File('${output.path}/$filename');
     await file.writeAsBytes(pdfBytes);
-    await Share.shareXFiles([XFile(file.path)], text: 'הצעת מחיר ממיכאל פרסיז\'ן ארט');
+    await Share.shareXFiles([XFile(file.path)], text: 'הצעת מחיר מ$senderName');
   }
 
   // ==========================================

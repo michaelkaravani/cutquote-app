@@ -144,6 +144,13 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
                 ? null
                 : () async {
                     if (_nameController.text.trim().isEmpty) return;
+                    final phone = _phoneController.text.trim();
+                    if (phone.isNotEmpty && !RegExp(r'^[\d+\- ]+$').hasMatch(phone)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('מספר טלפון לא תקין')),
+                      );
+                      return;
+                    }
                     final navigator = Navigator.of(context);
 
                     setState(() => _isAdding = true);

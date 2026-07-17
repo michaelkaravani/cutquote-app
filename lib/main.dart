@@ -41,7 +41,7 @@ class MyApp extends StatelessWidget {
                 );
               }
 
-              if (snapshot.hasData && snapshot.data!.emailVerified) {
+              if (snapshot.data?.emailVerified == true) {
                 return const HomeScreen();
               }
 

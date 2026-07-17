@@ -51,6 +51,8 @@ class CsvExportService {
         final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
         netAmount += price * quantity;
       }
+      final discount = (quote['discount'] as num?)?.toDouble() ?? 0;
+      netAmount -= discount;
       final vatAmount = netAmount * vatRate;
       final totalAmount = netAmount + vatAmount;
 

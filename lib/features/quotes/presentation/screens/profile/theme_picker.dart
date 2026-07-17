@@ -48,7 +48,6 @@ class ThemePicker {
                       onTap: () {
                         themeNotifier.setThemeStyle(style);
                         Navigator.pop(ctx);
-                        show(context);
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),

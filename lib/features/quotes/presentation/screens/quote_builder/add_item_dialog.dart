@@ -96,7 +96,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       child: Align(
                         alignment: Alignment.centerRight,
                         child: Text(
-                          "${item['name']} (₪${item['price']})",
+                          "${item['name'] ?? ''} (₪${item['price'] ?? ''})",
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
@@ -108,9 +108,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   onChanged: (selectedItem) {
                     if (selectedItem != null) {
                       setState(() {
-                        nameController.text = selectedItem['name'];
-                        priceController.text = selectedItem['price']
-                            .toString();
+                        nameController.text = selectedItem['name']?.toString() ?? '';
+                        priceController.text = (selectedItem['price'] as num?)?.toString() ?? '';
                         quantityController.text = "1";
                         quantityController.selection = TextSelection(
                           baseOffset: 0,

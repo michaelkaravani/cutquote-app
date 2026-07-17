@@ -42,7 +42,7 @@ class CustomerExpansionCard extends StatelessWidget {
         iconColor: Theme.of(context).colorScheme.secondary,
         collapsedIconColor: Theme.of(context).colorScheme.onSurface,
         title: Text(
-          customer['name']!,
+          customer['name'] ?? '',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Theme.of(context).colorScheme.onSurface,
@@ -50,7 +50,7 @@ class CustomerExpansionCard extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          'ח.פ: ${customer['hp']} | טלפון: ${customer['phone']}',
+          'ח.פ: ${customer['hp'] ?? '—'} | טלפון: ${customer['phone'] ?? '—'}',
           style: TextStyle(
             color: Theme.of(context)
                 .colorScheme
@@ -63,7 +63,7 @@ class CustomerExpansionCard extends StatelessWidget {
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'כתובת: ${customer['address']}',
+            'כתובת: ${customer['address'] ?? ''}',
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,
@@ -85,7 +85,7 @@ class CustomerExpansionCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: quotes.map((quote) {
                 final items =
-                    quote['items'] as List<dynamic>? ?? [];
+                    (quote['items'] as List?)?.cast<dynamic>() ?? [];
                 return GestureDetector(
                   onLongPress: () =>
                       onToggleSelection(quote['id']),
@@ -151,7 +151,7 @@ class CustomerExpansionCard extends StatelessWidget {
                             MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'סה״כ: ₪${quote['total']}',
+                            'סה״כ: ₪${(quote['total'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(context)
@@ -329,7 +329,7 @@ class CustomerExpansionCard extends StatelessWidget {
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                textDirection: TextDirection.ltr,
+                textDirection: TextDirection.rtl,
                 children: [
                   const Icon(
                     Icons.delete,

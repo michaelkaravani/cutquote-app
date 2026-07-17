@@ -64,12 +64,13 @@ class DashboardView extends StatelessWidget {
 
     final uniqueCustomers = quotes
         .where(
-          (q) =>
-              q['customer'] != null &&
-              q['customer']['name'] != null &&
-              q['customer']['name'].toString().trim().isNotEmpty,
+          (q) {
+            final c = q['customer'] as Map?;
+            return c != null && c['name'] != null && c['name'].toString().trim().isNotEmpty;
+          },
         )
-        .map((q) => q['customer']['name'].toString())
+        .map((q) => ((q['customer'] as Map?)?['name'] as String?) ?? '')
+        .where((name) => name.isNotEmpty)
         .toSet()
         .length;
 
@@ -385,19 +386,18 @@ class DashboardView extends StatelessWidget {
                           : filteredQuotes.length,
                       itemBuilder: (context, index) {
                         final quote = filteredQuotes[index];
-                        final customerName = quote['customer'] != null
-                            ? quote['customer']['name']
-                            : 'לקוח כללי';
+                        final customerName = (quote['customer'] as Map?)?['name']?.toString() ?? 'לקוח כללי';
 
                         double total = 0;
                         if (quote['items'] != null) {
                           for (var item in quote['items']) {
                             total +=
-                                (item['price'] ?? 0) * (item['quantity'] ?? 1);
+                                ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 1);
                           }
                         }
 
                         return Card(
+                          key: ValueKey(quote['id']?.toString() ?? index.toString()),
                           surfaceTintColor: Colors.transparent,
                           margin: const EdgeInsets.only(bottom: 10),
                           child: Padding(
@@ -425,7 +425,7 @@ class DashboardView extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${quote['title'] ?? 'הצעת מחיר'} #${index + 1001}',
+                                            '${quote['title'] ?? 'הצעת מחיר'} #${quote['id'] != null ? quotes.indexWhere((q) => q['id'] == quote['id']) + 1001 : 1000}',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Theme.of(context)

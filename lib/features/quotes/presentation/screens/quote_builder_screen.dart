@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/pdf_service.dart';
+import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/add_item_dialog.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/customer_picker_sheet.dart';
@@ -61,62 +62,76 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    titleController.dispose();
+    notesController.dispose();
+    super.dispose();
+  }
+
   double calculateTotal() {
     double total = 0;
     for (var item in items) {
-      total += item['price'] * item['quantity'];
+      total += ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 0);
     }
-    return total - _discount;
+    return (total - _discount).clamp(0, double.infinity);
   }
 
   void _editDiscount(BuildContext context) {
-    final controller = TextEditingController(text: _discount.toStringAsFixed(0));
     showDialog(
       context: context,
-      builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'הנחה',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.bold,
+      builder: (context) {
+        final controller = TextEditingController(text: _discount.toStringAsFixed(0));
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: 'סכום ההנחה בשקלים',
-              prefixIcon: const Icon(Icons.money_off, size: 20),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final value = double.tryParse(controller.text);
-                if (value != null && value >= 0) {
-                  setState(() => _discount = value);
-                }
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+            title: Text(
+              'הנחה',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
+                fontWeight: FontWeight.bold,
               ),
-              child: const Text('אישור'),
             ),
-          ],
-        ),
-      ),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'סכום ההנחה בשקלים',
+                prefixIcon: const Icon(Icons.money_off, size: 20),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  controller.dispose();
+                  Navigator.pop(context);
+                },
+                child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final value = double.tryParse(controller.text);
+                  final itemsTotal = calculateTotal() + _discount;
+                  if (value != null && value >= 0 && value <= itemsTotal) {
+                    setState(() => _discount = value);
+                    controller.dispose();
+                    Navigator.pop(context);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('אישור'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -274,7 +289,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text(
-                    'ח.פ: ${selectedCustomer!['hp']} | כתובת: ${selectedCustomer!['address']}',
+                    'ח.פ: ${selectedCustomer!['hp'] ?? '—'} | כתובת: ${selectedCustomer!['address'] ?? '—'}',
                     style: TextStyle(
                       color: Theme.of(context)
                           .colorScheme
@@ -350,20 +365,21 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    final double itemTotal = item['price'] * item['quantity'];
+                    final double itemTotal = ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 0);
                     return Card(
+                      key: ValueKey(item['name'] ?? index),
                       surfaceTintColor: Colors.transparent,
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
                         title: Text(
-                          item['name'],
+                          item['name'] ?? '',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         subtitle: Text(
-                          '${item['quantity']} יח\' X ₪${item['price'].toStringAsFixed(2)}',
+                          '${(item['quantity'] as num?)?.toInt() ?? 0} יח\' X ₪${((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
                           style: TextStyle(
                             color: Theme.of(context)
                                 .colorScheme
@@ -420,25 +436,30 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
 
                         if (widget.initialQuote != null &&
                             widget.onUpdateQuote != null) {
-                          await widget.onUpdateQuote!({
-                            'customer': selectedCustomer,
-                            'items': List<Map<String, dynamic>>.from(items),
-                            'total': calculateTotal(),
-                            'date': widget.initialQuote!['date'] ?? formattedDate,
-                            'title': titleController.text.trim(),
-                            'notes': notesController.text.trim(),
-                            'id': widget.initialQuote!['id'],
-                            'discount': _discount,
-                          });
-                          if (!mounted) return;
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'הצעת המחיר עודכנה בהצלחה!',
+                          try {
+                            await widget.onUpdateQuote!({
+                              'customer': selectedCustomer,
+                              'items': List<Map<String, dynamic>>.from(items),
+                              'total': calculateTotal(),
+                              'date': widget.initialQuote!['date'] ?? formattedDate,
+                              'title': titleController.text.trim(),
+                              'notes': notesController.text.trim(),
+                              'id': widget.initialQuote!['id'],
+                              'discount': _discount,
+                            });
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'הצעת המחיר עודכנה בהצלחה!',
+                                ),
                               ),
-                            ),
-                          );
-                          navigator.pop();
+                            );
+                            navigator.pop();
+                          } catch (_) {
+                            if (!mounted) return;
+                            setState(() => _isSaving = false);
+                          }
                         } else {
                           await widget.onSaveQuote({
                             'customer': selectedCustomer,
@@ -501,6 +522,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                     if (uid == null) return;
                     final freshProfile =
                         await FirestoreService.loadProfile(uid);
+                    if (!mounted) return;
                     final profile = freshProfile ?? widget.profile;
 
                     await PdfService.generateAndShareQuote(
@@ -511,6 +533,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
                       notes: notesController.text.trim(),
                       profile: profile,
+                      templateStyle: pdfTemplateNotifier.currentTemplate,
                     );
                   },
                   icon: const Icon(Icons.share, size: 18),
@@ -543,15 +566,16 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   itemBuilder: (context, index) {
                     final catItem = widget.catalog[index];
                     return Card(
+                      key: ValueKey(catItem['name'] ?? index),
                       surfaceTintColor: Colors.transparent,
                       margin: const EdgeInsets.symmetric(vertical: 3),
                       child: ListTile(
                         dense: true,
                         title: Text(
-                          catItem['name'],
+                          catItem['name'] ?? '',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        subtitle: Text("₪${catItem['price']}"),
+                        subtitle: Text("₪${(catItem['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}"),
                         trailing: IconButton(
                           icon: Icon(
                             Icons.delete_outline,

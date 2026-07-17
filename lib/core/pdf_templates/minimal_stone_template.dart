@@ -34,8 +34,16 @@ Future<Uint8List> buildMinimalStonePdf({
   final showPaymentTerms = paymentTerms.isNotEmpty;
   final showNotes = cleanNotes.isNotEmpty || defaultTerms.isNotEmpty;
 
-  final beforeVat = total / (1.0 + vatRate);
-  final vatAmount = total - beforeVat;
+  final vatAmount = total * vatRate;
+  final totalWithVat = total + vatAmount;
+
+  Uint8List? logoBytes;
+  if (logoPath != null) {
+    try {
+      final logoFile = File(logoPath);
+      logoBytes = await logoFile.readAsBytes();
+    } catch (_) {}
+  }
 
   pdf.addPage(
     pw.Page(
@@ -64,9 +72,9 @@ Future<Uint8List> buildMinimalStonePdf({
                       pw.Text(email, style: pw.TextStyle(fontSize: 8, color: textMuted)),
                     ],
                   ),
-                  if (logoPath != null && File(logoPath).existsSync())
+                  if (logoBytes != null)
                     pw.Image(
-                      pw.MemoryImage(File(logoPath).readAsBytesSync()),
+                      pw.MemoryImage(logoBytes),
                       width: 42,
                       height: 42,
                     ),
@@ -139,7 +147,7 @@ Future<Uint8List> buildMinimalStonePdf({
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: textMuted)),
-                          pw.Text('₪${beforeVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: textDark)),
+                          pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: textDark)),
                         ],
                       ),
                       pw.SizedBox(height: 4),
@@ -155,7 +163,7 @@ Future<Uint8List> buildMinimalStonePdf({
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: brandGrey)),
-                          pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandTerracotta)),
+                          pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandTerracotta)),
                         ],
                       ),
                     ],
