@@ -28,6 +28,7 @@ Future<Uint8List> buildCleanCorporatePdf({
   final email = p['email'] as String;
   final logoPath = p['logoPath'] as String?;
   final vatRate = p['vatRate'] as double;
+  final vatExempt = p['vatExempt'] as bool;
   final defaultTerms = p['defaultPdfNotes'] as String;
   final paymentTerms = p['paymentTerms'] as String;
   final cleanNotes = (notes ?? '').trim();
@@ -107,7 +108,6 @@ Future<Uint8List> buildCleanCorporatePdf({
                       padding: const pw.EdgeInsets.all(14),
                       decoration: pw.BoxDecoration(
                         color: PdfColors.white,
-                        borderRadius: pw.BorderRadius.circular(6),
                         border: pw.Border(
                           right: pw.BorderSide(color: brandTeal, width: 3),
                           top: pw.BorderSide(color: borderLight, width: 0.5),
@@ -263,32 +263,50 @@ Future<Uint8List> buildCleanCorporatePdf({
                         children: [
                           pw.Text('סיכום הצעת מחיר', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
                           pw.SizedBox(height: 10),
-                          pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
-                              pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
-                            ],
-                          ),
-                          pw.SizedBox(height: 4),
-                          pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text('מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
-                              pw.Text('₪${vatAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
-                            ],
-                          ),
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                            child: pw.Divider(color: PdfColor.fromInt(0x4DFFFFFF), thickness: 0.5),
-                          ),
-                          pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                              pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                            ],
-                          ),
+                          if (!vatExempt) ...[
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
+                                pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                              ],
+                            ),
+                            pw.SizedBox(height: 4),
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
+                                pw.Text('₪${vatAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                              ],
+                            ),
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.symmetric(vertical: 6),
+                              child: pw.Divider(color: PdfColor.fromInt(0x4DFFFFFF), thickness: 0.5),
+                            ),
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                              ],
+                            ),
+                          ] else ...[
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                              ],
+                            ),
+                            pw.SizedBox(height: 6),
+                            pw.Row(
+                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              children: [
+                                pw.Text('פטור ממע"מ', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFCCE8EA))),
+                                pw.Text('עוסק פטור', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFCCE8EA))),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),

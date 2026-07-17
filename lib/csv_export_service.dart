@@ -11,6 +11,7 @@ class CsvExportService {
     required int year,
     required int month,
     double vatRate = 0.18,
+    bool vatExempt = false,
   }) async {
     final filteredQuotes = _filterQuotesByMonth(allQuotes, year, month);
 
@@ -19,17 +20,28 @@ class CsvExportService {
     }
 
     final rows = <List<dynamic>>[
-      [
-        'מס\' הצעה',
-        'תאריך',
-        'שם לקוח',
-        'עסק/ח"פ',
-        'תיאור הפרויקט',
-        'סטטוס',
-        'סכום נטו',
-        'מע"מ 18%',
-        'סה"כ לתשלום',
-      ],
+      if (vatExempt)
+        [
+          'מס\' הצעה',
+          'תאריך',
+          'שם לקוח',
+          'עסק/ח"פ',
+          'תיאור הפרויקט',
+          'סטטוס',
+          'סה"כ לתשלום',
+        ]
+      else
+        [
+          'מס\' הצעה',
+          'תאריך',
+          'שם לקוח',
+          'עסק/ח"פ',
+          'תיאור הפרויקט',
+          'סטטוס',
+          'סכום נטו',
+          'מע"מ 18%',
+          'סה"כ לתשלום',
+        ],
     ];
 
     int index = 1;
@@ -53,8 +65,8 @@ class CsvExportService {
       }
       final discount = (quote['discount'] as num?)?.toDouble() ?? 0;
       netAmount -= discount;
-      final vatAmount = netAmount * vatRate;
-      final totalAmount = netAmount + vatAmount;
+      final vatAmount = vatExempt ? 0 : netAmount * vatRate;
+      final totalAmount = vatExempt ? netAmount : netAmount + vatAmount;
 
       final quoteNumber = 1000 + index;
 
@@ -65,9 +77,13 @@ class CsvExportService {
         businessId,
         description,
         status,
-        netAmount.toStringAsFixed(2),
-        vatAmount.toStringAsFixed(2),
-        totalAmount.toStringAsFixed(2),
+        if (vatExempt)
+          totalAmount.toStringAsFixed(2)
+        else ...[
+          netAmount.toStringAsFixed(2),
+          vatAmount.toStringAsFixed(2),
+          totalAmount.toStringAsFixed(2),
+        ],
       ]);
 
       index++;

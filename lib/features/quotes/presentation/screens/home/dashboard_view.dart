@@ -23,6 +23,8 @@ class DashboardView extends StatelessWidget {
     required this.onEditQuote,
     required this.onShareQuote,
     required this.onConfirmDeleteQuote,
+    this.dashboardSearchQuery = '',
+    this.onDashboardSearchChanged,
   });
 
   final List<Map<String, dynamic>> quotes;
@@ -30,6 +32,8 @@ class DashboardView extends StatelessWidget {
   final String businessName;
   final String? selectedCustomerFilter;
   final bool showOnlyPending;
+  final String dashboardSearchQuery;
+  final ValueChanged<String>? onDashboardSearchChanged;
   final VoidCallback onShowCustomerFilter;
   final VoidCallback onExportMonthlyRevenue;
   final VoidCallback onProfileTap;
@@ -342,6 +346,29 @@ class DashboardView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
+              if (quotes.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: TextField(
+                    controller: TextEditingController.fromValue(
+                      TextEditingValue(text: dashboardSearchQuery),
+                    ),
+                    onChanged: onDashboardSearchChanged,
+                    decoration: InputDecoration(
+                      hintText: 'חיפוש הצעות מחיר...',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                    textDirection: TextDirection.rtl,
+                  ),
+                ),
               quotes.isEmpty
                   ? Card(
                       surfaceTintColor: Colors.transparent,
@@ -381,7 +408,7 @@ class DashboardView extends StatelessWidget {
                   : ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredQuotes.length > 5
+                      itemCount: filteredQuotes.length > 5 && dashboardSearchQuery.isEmpty && !showOnlyPending && selectedCustomerFilter == null
                           ? 5
                           : filteredQuotes.length,
                       itemBuilder: (context, index) {

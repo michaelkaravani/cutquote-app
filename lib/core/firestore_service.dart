@@ -45,6 +45,14 @@ class FirestoreService {
     await _customers(uid).doc(docId).delete();
   }
 
+  static Future<void> updateCustomer(
+    String uid,
+    String docId,
+    Map<String, String> data,
+  ) async {
+    await _customers(uid).doc(docId).update(data);
+  }
+
   // --- קטלוג ---
 
   static Future<List<Map<String, dynamic>>> loadCatalog(String uid) async {

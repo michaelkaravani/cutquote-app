@@ -33,6 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _vatExempt = false;
 
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
   String get _email => FirebaseAuth.instance.currentUser?.email ?? '';
@@ -69,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
         _paymentTermsController.text = profile?['paymentTerms'] ?? '';
+        _vatExempt = profile?['vatExempt'] == true;
         _logoPath = profile?['logoPath'] as String?;
         _isLoading = false;
       });
@@ -142,6 +144,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'businessName': _businessNameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'vatRate': (double.tryParse(_vatRateController.text) ?? 18) / 100,
+        'vatExempt': _vatExempt,
         'logoPath': _logoPath,
         'defaultPdfNotes': _pdfNotesController.text.trim(),
         'paymentTerms': _paymentTermsController.text.trim(),
@@ -448,7 +451,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return null;
                           },
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text(
+                            'עוסק פטור ממע"מ',
+                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                          ),
+                          subtitle: const Text(
+                            'אינו גובה מע"מ ואינו מנכה מע"מ',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          value: _vatExempt,
+                          onChanged: _isEditing
+                              ? (value) {
+                                  setState(() {
+                                    _vatExempt = value;
+                                    if (value) {
+                                      _vatRateController.text = '0';
+                                    }
+                                  });
+                                }
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
                         Text(
                           'לוגו עסק',
                           style: TextStyle(

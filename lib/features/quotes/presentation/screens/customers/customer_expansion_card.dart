@@ -15,6 +15,7 @@ class CustomerExpansionCard extends StatelessWidget {
   final Function(String quoteId, String newStatus)? onUpdateQuoteStatus;
   final void Function(Map<String, String> customer) onGenerateSummary;
   final void Function(int index, String customerName) onConfirmDeleteCustomer;
+  final void Function(Map<String, String> customer) onEditCustomer;
 
   const CustomerExpansionCard({
     super.key,
@@ -31,6 +32,7 @@ class CustomerExpansionCard extends StatelessWidget {
     this.onUpdateQuoteStatus,
     required this.onGenerateSummary,
     required this.onConfirmDeleteCustomer,
+    required this.onEditCustomer,
   });
 
   @override
@@ -322,34 +324,47 @@ class CustomerExpansionCard extends StatelessWidget {
           const Divider(height: 24),
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: () => onConfirmDeleteCustomer(
-                index,
-                customer['name'] ?? '',
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                textDirection: TextDirection.rtl,
-                children: [
-                  const Icon(
-                    Icons.delete,
-                    color: Colors.redAccent,
-                    size: 16,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextButton.icon(
+                  onPressed: () => onEditCustomer(customer),
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  label: const Text('ערוך לקוח'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.blueGrey,
                   ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'מחק לקוח',
-                    style: TextStyle(
-                      color: Colors.redAccent,
-                      fontSize: 12,
-                    ),
+                ),
+                TextButton(
+                  onPressed: () => onConfirmDeleteCustomer(
+                    index,
+                    customer['name'] ?? '',
                   ),
-                ],
-              ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      const Icon(
+                        Icons.delete,
+                        color: Colors.redAccent,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'מחק לקוח',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
   }
 }

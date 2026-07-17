@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AddCustomerDialog extends StatefulWidget {
+  final Map<String, String>? existingCustomer;
   final Future<void> Function(Map<String, String>) onCustomerAdded;
 
-  const AddCustomerDialog({super.key, required this.onCustomerAdded});
+  const AddCustomerDialog({super.key, this.existingCustomer, required this.onCustomerAdded});
 
   @override
   State<AddCustomerDialog> createState() => _AddCustomerDialogState();
@@ -15,6 +16,18 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isAdding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingCustomer != null) {
+      final c = widget.existingCustomer!;
+      _nameController.text = c['name'] ?? '';
+      _hpController.text = c['hp'] ?? '';
+      _addressController.text = c['address'] ?? '';
+      _phoneController.text = c['phone'] ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -35,7 +48,7 @@ class _AddCustomerDialogState extends State<AddCustomerDialog> {
           borderRadius: BorderRadius.circular(16),
         ),
         title: Text(
-          'הוספת לקוח חדש',
+          widget.existingCustomer != null ? 'עריכת לקוח' : 'הוספת לקוח חדש',
           style: TextStyle(
             color: Theme.of(context).colorScheme.primary,
             fontWeight: FontWeight.bold,

@@ -29,6 +29,7 @@ Future<Uint8List> buildModernBordeauxPdf({
   final email = p['email'] as String;
   final logoPath = p['logoPath'] as String?;
   final vatRate = p['vatRate'] as double;
+  final vatExempt = p['vatExempt'] as bool;
   final defaultTerms = p['defaultPdfNotes'] as String;
   final paymentTerms = p['paymentTerms'] as String;
   final cleanNotes = (notes ?? '').trim();
@@ -222,32 +223,50 @@ Future<Uint8List> buildModernBordeauxPdf({
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFD4A0A5))),
-                          pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
-                        ],
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFD4A0A5))),
-                          pw.Text('₪${vatAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
-                        ],
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                        child: pw.Divider(color: brandGold, thickness: 0.5),
-                      ),
-                      pw.Row(
-                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                        children: [
-                          pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: brandGold)),
-                          pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandGold)),
-                        ],
-                      ),
+                      if (!vatExempt) ...[
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFD4A0A5))),
+                            pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFD4A0A5))),
+                            pw.Text('₪${vatAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                          ],
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 6),
+                          child: pw.Divider(color: brandGold, thickness: 0.5),
+                        ),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: brandGold)),
+                            pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandGold)),
+                          ],
+                        ),
+                      ] else ...[
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: brandGold)),
+                            pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: brandGold)),
+                          ],
+                        ),
+                        pw.SizedBox(height: 6),
+                        pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('פטור ממע"מ', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFD4A0A5))),
+                            pw.Text('עוסק פטור', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFD4A0A5))),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

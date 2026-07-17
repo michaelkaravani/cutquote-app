@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String? _selectedCustomerFilter;
   bool _showOnlyPending = false;
+  String _dashboardSearchQuery = '';
 
   List<Map<String, dynamic>> get _filteredQuotes {
     var result = _globalQuotes.toList()
@@ -61,6 +62,16 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           )
           .toList();
+    }
+
+    if (_dashboardSearchQuery.isNotEmpty) {
+      final query = _dashboardSearchQuery.trim().toLowerCase();
+      result = result.where((q) {
+        final title = (q['title']?.toString() ?? '').toLowerCase();
+        final c = q['customer'] as Map?;
+        final customerName = (c?['name']?.toString() ?? '').toLowerCase();
+        return title.contains(query) || customerName.contains(query);
+      }).toList();
     }
 
     return result;
@@ -100,6 +111,28 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('שגיאה בטעינת הנתונים: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _updateCustomer(Map<String, String> updatedCustomer) async {
+    final docId = updatedCustomer['id'];
+    if (docId == null) return;
+    try {
+      final data = Map<String, String>.from(updatedCustomer)..remove('id');
+      await FirestoreService.updateCustomer(_uid, docId, data);
+      if (!mounted) return;
+      setState(() {
+        final idx = _globalCustomers.indexWhere((c) => c['id'] == docId);
+        if (idx != -1) _globalCustomers[idx] = updatedCustomer;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בעדכון לקוח: $e'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -622,11 +655,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final vatRate = (_profile?['vatRate'] as num?)?.toDouble() ?? 0.18;
+      final vatExempt = _profile?['vatExempt'] == true;
       await CsvExportService.exportMonthlyRevenue(
         allQuotes: _globalQuotes,
         year: result.year,
         month: result.month,
         vatRate: vatRate,
+        vatExempt: vatExempt,
       );
     } catch (e) {
       if (!mounted) return;
@@ -685,6 +720,8 @@ class _HomeScreenState extends State<HomeScreen> {
       onEditQuote: _editQuote,
       onShareQuote: _shareQuote,
       onConfirmDeleteQuote: _confirmDeleteQuote,
+      dashboardSearchQuery: _dashboardSearchQuery,
+      onDashboardSearchChanged: (query) => setState(() => _dashboardSearchQuery = query),
     );
   }
 
@@ -708,6 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
         quotes: _globalQuotes,
         onCustomerAdded: _addCustomer,
         onCustomerDeleted: _deleteCustomer,
+        onCustomerUpdated: _updateCustomer,
         onGenerateSummary: _consolidateCustomerQuotesAsPdf,
         onEditQuote: _editQuote,
         onShareQuote: _shareQuote,

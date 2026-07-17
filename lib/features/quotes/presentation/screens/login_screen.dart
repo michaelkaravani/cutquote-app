@@ -232,9 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               } on FirebaseAuthException catch (e) {
                                 messenger.showSnackBar(
                                   SnackBar(
-                                    content: Text(
-                                      'שגיאה: ${e.message} (${e.code})',
-                                    ),
+                                    content: Text(_friendlyAuthError(e)),
                                     backgroundColor: Colors.redAccent,
                                   ),
                                 );
@@ -338,8 +336,15 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyAuthError(e)),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } catch (e) {
-      // פתרון שגיאה מספר 4: הגנה על ה-Context האסינכרוני במקרה של זריקת שגיאה (catch)
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -353,6 +358,29 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  String _friendlyAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'user-not-found':
+      case 'wrong-password':
+        return 'שם המשתמש או הסיסמה שגויים';
+      case 'invalid-email':
+        return 'כתובת האימייל אינה תקינה';
+      case 'user-disabled':
+        return 'החשבון הושבת';
+      case 'too-many-requests':
+        return 'יותר מדי ניסיונות כושלים. אנא נסה מאוחר יותר';
+      case 'network-request-failed':
+        return 'בעיית רשת, אנא בדוק את החיבור שלך';
+      case 'email-already-in-use':
+        return 'כתובת האימייל כבר רשומה במערכת';
+      case 'weak-password':
+        return 'הסיסמה חייבת להכיל לפחות 6 תווים';
+      default:
+        return 'שגיאת התחברות: ${e.message}';
     }
   }
 
@@ -393,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('שגיאה: ${e.message} (${e.code})'),
+            content: Text(_friendlyAuthError(e)),
             backgroundColor: Colors.redAccent,
           ),
         );

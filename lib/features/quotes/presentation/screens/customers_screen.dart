@@ -19,6 +19,7 @@ class CustomersScreen extends StatefulWidget {
   final List<Map<String, dynamic>> quotes;
   final Future<void> Function(Map<String, String>) onCustomerAdded;
   final Function(int) onCustomerDeleted;
+  final Function(Map<String, String>) onCustomerUpdated;
   final Function(Map<String, String>) onGenerateSummary;
   final Function(Map<String, dynamic>) onEditQuote;
   final Function(Map<String, dynamic>) onShareQuote;
@@ -33,6 +34,7 @@ class CustomersScreen extends StatefulWidget {
     required this.quotes,
     required this.onCustomerAdded,
     required this.onCustomerDeleted,
+    required this.onCustomerUpdated,
     required this.onGenerateSummary,
     required this.onEditQuote,
     required this.onShareQuote,
@@ -325,6 +327,23 @@ class _CustomersScreenState extends State<CustomersScreen> {
     );
   }
 
+  void _openEditCustomerDialog(Map<String, String> customer) {
+    showDialog(
+      context: context,
+      builder: (_) => AddCustomerDialog(
+        existingCustomer: customer,
+        onCustomerAdded: (updated) async {
+          final withId = Map<String, String>.from(updated)
+            ..['id'] = customer['id'] ?? '';
+          final navigator = Navigator.of(context);
+          await widget.onCustomerUpdated(withId);
+          if (!context.mounted) return;
+          navigator.pop();
+        },
+      ),
+    );
+  }
+
   Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
@@ -435,6 +454,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
           onUpdateQuoteStatus: widget.onUpdateQuoteStatus,
           onGenerateSummary: widget.onGenerateSummary,
           onConfirmDeleteCustomer: _confirmDeleteCustomer,
+          onEditCustomer: _openEditCustomerDialog,
         );
       },
     );
