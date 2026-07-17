@@ -104,7 +104,7 @@ class PdfService {
     final output = await getTemporaryDirectory();
     final file = File('${output.path}/$filename');
     await file.writeAsBytes(pdfBytes);
-    await Share.shareXFiles([XFile(file.path)], text: 'הצעת מחיר מ$senderName');
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'הצעת מחיר מ$senderName'));
   }
 
   // ==========================================

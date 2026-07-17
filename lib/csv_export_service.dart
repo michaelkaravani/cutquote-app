@@ -99,9 +99,8 @@ class CsvExportService {
     final file = File('${tempDir.path}/$fileName');
     await file.writeAsString(csvWithBom, encoding: utf8);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'דוח הכנסות חודשי - $monthName $year',
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: 'דוח הכנסות חודשי - $monthName $year'),
     );
   }
 

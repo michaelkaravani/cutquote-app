@@ -1,5 +1,10 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +27,16 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isRegPasswordVisible = false;
   bool _isLoading = false;
+  bool _biometricAvailable = false;
+  bool _hasSavedPassword = false;
+  bool _rememberMe = true;
+  String? _loginError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
 
   @override
   void dispose() {
@@ -31,6 +46,146 @@ class _LoginScreenState extends State<LoginScreen> {
     _regPasswordController.dispose();
     _regConfirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('saved_email') ?? '';
+      if (savedEmail.isNotEmpty) {
+        _emailController.text = savedEmail;
+      }
+
+      final isMobile = Platform.isAndroid || Platform.isIOS;
+      final auth = LocalAuthentication();
+      final hasBiometrics = await auth.canCheckBiometrics
+          .timeout(const Duration(seconds: 5), onTimeout: () => false);
+      final deviceSupported = isMobile && await auth.isDeviceSupported()
+          .timeout(const Duration(seconds: 5), onTimeout: () => false);
+      _biometricAvailable = hasBiometrics && deviceSupported;
+
+      _hasSavedPassword = prefs.getBool('has_credentials') ?? false;
+    } catch (_) {
+      _biometricAvailable = false;
+      _hasSavedPassword = false;
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _saveCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_email', _emailController.text.trim());
+
+      if (_rememberMe) {
+        try {
+          await const FlutterSecureStorage().write(
+            key: 'saved_password',
+            value: _passwordController.text,
+          );
+        } catch (_) {
+          await prefs.setString('saved_password', _passwordController.text);
+        }
+        await prefs.setBool('has_credentials', true);
+      } else {
+        try {
+          await const FlutterSecureStorage().delete(key: 'saved_password');
+        } catch (_) {}
+        await prefs.remove('saved_password');
+        await prefs.remove('has_credentials');
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _handleBiometricLogin() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _loginError = null;
+    });
+
+    try {
+      final auth = LocalAuthentication();
+      final authenticated = await auth.authenticate(
+        localizedReason: 'התחברות מהירה להצעת מחיר',
+        options: AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (!authenticated) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('טביעת האצבע לא זוהתה, אנא הזן סיסמה ידנית'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      var savedPassword = await const FlutterSecureStorage()
+          .read(key: 'saved_password');
+
+      if (savedPassword == null || savedPassword.isEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        savedPassword = prefs.getString('saved_password');
+      }
+
+      if (savedPassword == null || savedPassword.isEmpty) {
+        if (mounted) {
+          _loginError = 'לא נמצאו פרטי התחברות שמורים';
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('לא נמצאו פרטי התחברות שמורים'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      _emailController.text = (await SharedPreferences.getInstance())
+          .getString('saved_email') ?? '';
+      _passwordController.text = savedPassword;
+      await _handleLogin();
+    } on PlatformException catch (e) {
+      if (!mounted) return;
+      String message;
+      switch (e.code) {
+        case 'NotAvailable':
+        case 'BiometricNotAvailable':
+          message = 'טביעת אצבע לא זמינה במכשיר זה';
+          break;
+        case 'NotEnrolled':
+          message = 'לא הוגדרה טביעת אצבע במכשיר';
+          break;
+        case 'LockedOut':
+        case 'PermanentlyLocked':
+          message = 'טביעת האצבע ננעלה, אנא השתמש בסיסמה';
+          break;
+        default:
+          message = 'טביעת אצבע: ${e.code} - ${e.message}';
+      }
+      _loginError = message;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.orange),
+      );
+    } catch (e) {
+      if (mounted) {
+        _loginError = 'שגיאה: $e';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_loginError!),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   void _openRegisterDialog() {
@@ -384,61 +539,87 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _handleLogin() async {
-    if (_formKey.currentState?.validate() ?? false) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        UserCredential userCredential = await FirebaseAuth.instance
-            .signInWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
-            );
-
-        User? user = userCredential.user;
-
-        if (user != null && !user.emailVerified) {
-          await user.sendEmailVerification();
-          await FirebaseAuth.instance.signOut();
-
-          // פתרון שגיאה מספר 5: מניעת קריאה ל-Context מחוץ לסטייט אם המשתמש לא אימת מייל
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'חשבונך טרם אומת. שלחנו לך מייל אימות חדש, אנא בדוק את תיבת הדואר שלך.',
-              ),
-              backgroundColor: Colors.orange,
-            ),
-          );
-          return;
-        }
-
-        if (!mounted) return;
-      } on FirebaseAuthException catch (e) {
-        if (!mounted) return;
+  Future<void> _handleLogin() async {
+    if (_formKey.currentState == null) {
+      if (mounted) {
+        _loginError = 'שגיאה בטעינת הטופס';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_friendlyAuthError(e)),
-            backgroundColor: Colors.redAccent,
+          const SnackBar(
+            content: Text('שגיאה בטעינת הטופס'),
+            backgroundColor: Colors.orange,
           ),
         );
-      } catch (e) {
-        if (!mounted) return;
+      }
+      return;
+    }
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      if (mounted) {
+        _loginError = 'אנא מלא את כל השדות';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('שגיאה: $e'),
-            backgroundColor: Colors.redAccent,
+          const SnackBar(
+            content: Text('אנא מלא את כל השדות'),
+            backgroundColor: Colors.orange,
           ),
         );
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+      }
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _loginError = null;
+    });
+
+    try {
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          ).timeout(const Duration(seconds: 30));
+
+      User? user = userCredential.user;
+
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+        _loginError = 'חשבונך טרם אומת. שלחנו לך מייל אימות חדש, אנא בדוק את תיבת הדואר שלך.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_loginError!),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      _saveCredentials();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _loginError = _friendlyAuthError(e);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_loginError!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _loginError = 'שגיאה: $e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_loginError!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
@@ -585,6 +766,35 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            onChanged: _isLoading
+                                ? null
+                                : (v) => setState(() => _rememberMe = v ?? false),
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: _isLoading
+                              ? null
+                              : () => setState(() => _rememberMe = !_rememberMe),
+                          child: Text(
+                            'זכור אותי',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 28),
 
                     ElevatedButton(
@@ -608,6 +818,37 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                     ),
+                    if (_loginError != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          _loginError!,
+                          style: const TextStyle(
+                            color: Colors.redAccent,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    if (_biometricAvailable && _hasSavedPassword) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _handleBiometricLogin,
+                        icon: const Icon(Icons.fingerprint, size: 22),
+                        label: const Text('התחברות באמצעות טביעת אצבע'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          foregroundColor: Theme.of(context).colorScheme.secondary,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     Row(

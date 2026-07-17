@@ -11,7 +11,6 @@ import 'package:cutquote/features/quotes/presentation/screens/profile/logo_picke
 import 'package:cutquote/features/quotes/presentation/screens/profile/theme_picker.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/pdf_template_chooser.dart';
 import 'about_screen.dart';
-import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -123,10 +122,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (route) => false,
-    );
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _handleSave() async {

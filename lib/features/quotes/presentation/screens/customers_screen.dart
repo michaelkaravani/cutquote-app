@@ -294,7 +294,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
         files.add(XFile(file.path));
       }
 
-      await Share.shareXFiles(files);
+      await SharePlus.instance.share(ShareParams(files: files));
       if (!mounted) return;
 
       for (final f in files) {
