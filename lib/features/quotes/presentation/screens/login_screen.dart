@@ -27,6 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _isRegPasswordVisible = false;
   bool _isLoading = false;
+  bool _isResetting = false;
   bool _biometricAvailable = false;
   bool _hasSavedPassword = false;
   bool _rememberMe = true;
@@ -108,10 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final auth = LocalAuthentication();
       final authenticated = await auth.authenticate(
         localizedReason: 'התחברות מהירה להצעת מחיר',
-        options: AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+        authMessages: [],
       );
 
       if (!authenticated) {
@@ -447,7 +445,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() {
-      _isLoading = true;
+      _isResetting = true;
     });
 
     try {
@@ -455,7 +453,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
       );
 
-      // פתרון שגיאה מספר 3: בדיקה שהקומפוננטה מחוברת לסיסטם לפני פתיחת דיאלוג נוסף
       if (!mounted) return;
       showDialog(
         context: context,
@@ -510,7 +507,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isResetting = false;
         });
       }
     }
@@ -750,20 +747,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
-                        onPressed: _isLoading ? null : _handleForgotPassword,
+                        onPressed: _isLoading || _isResetting ? null : _handleForgotPassword,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        child: Text(
-                          'שכחתי סיסמה...',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.secondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isResetting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(
+                                'שכחתי סיסמה...',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.secondary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(height: 8),

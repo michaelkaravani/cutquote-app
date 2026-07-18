@@ -149,10 +149,10 @@ packages:
     dependency: "direct main"
     description:
       name: csv
-      sha256: c6aa2679b2a18cb57652920f674488d89712efaf4d3fdf2e537215b35fc19d6c
+      sha256: "2e0a52fb729f2faacd19c9c0c954ff450bba37aa8ab999410309e2342e7013a2"
       url: "https://pub.dev"
     source: hosted
-    version: "6.0.0"
+    version: "8.0.0"
   cupertino_icons:
     dependency: "direct main"
     description:
@@ -273,6 +273,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.9.1"
+  firebase_crashlytics:
+    dependency: "direct main"
+    description:
+      name: firebase_crashlytics
+      sha256: "9855d3e2286c3e4439cf7d48c740bdf282ac165f29c7551dcdaf121925c59a28"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.2.6"
+  firebase_crashlytics_platform_interface:
+    dependency: transitive
+    description:
+      name: firebase_crashlytics_platform_interface
+      sha256: aab14de92555ccf8c8616fc1b649272aef04dadb07f986e166e1d36d158f7bd1
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.8.26"
   fixnum:
     dependency: transitive
     description:
@@ -298,10 +314,10 @@ packages:
     dependency: "direct dev"
     description:
       name: flutter_launcher_icons
-      sha256: "526faf84284b86a4cb36d20a5e45147747b7563d921373d4ee0559c54fcdbcea"
+      sha256: "10f13781741a2e3972126fae08393d3c4e01fa4cd7473326b94b72cf594195e7"
       url: "https://pub.dev"
     source: hosted
-    version: "0.13.1"
+    version: "0.14.4"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -553,26 +569,26 @@ packages:
     dependency: "direct main"
     description:
       name: local_auth
-      sha256: "434d854cf478f17f12ab29a76a02b3067f86a63a6d6c4eb8fbfdcfe4879c1b7b"
+      sha256: ecf24edf2283c509ecd217e3595f6f71034b68888d28ad1dae6bfa0857b816ac
       url: "https://pub.dev"
     source: hosted
-    version: "2.3.0"
+    version: "3.0.2"
   local_auth_android:
     dependency: transitive
     description:
       name: local_auth_android
-      sha256: a0bdfcc0607050a26ef5b31d6b4b254581c3d3ce3c1816ab4d4f4a9173e84467
+      sha256: fdb936d59ab945c7af297defd67bd1ed87b11b6db1bc16d01e94677a8f1c38ec
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.56"
+    version: "2.0.9"
   local_auth_darwin:
     dependency: transitive
     description:
       name: local_auth_darwin
-      sha256: "699873970067a40ef2f2c09b4c72eb1cfef64224ef041b3df9fdc5c4c1f91f49"
+      sha256: a8c3d4e17454111f7fd31ff72a31222359f6059f7fe956c2dcfe0f88f49826d4
       url: "https://pub.dev"
     source: hosted
-    version: "1.6.1"
+    version: "2.0.3"
   local_auth_platform_interface:
     dependency: transitive
     description:
@@ -585,10 +601,10 @@ packages:
     dependency: transitive
     description:
       name: local_auth_windows
-      sha256: bc4e66a29b0fdf751aafbec923b5bed7ad6ed3614875d8151afe2578520b2ab5
+      sha256: be12c5b8ba5e64896983123655c5f67d2484ecfcc95e367952ad6e3bff94cb16
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.11"
+    version: "2.0.1"
   logging:
     dependency: transitive
     description:
@@ -809,10 +825,10 @@ packages:
     dependency: "direct main"
     description:
       name: share_plus
-      sha256: a857d8b1479250aff6b57a51b2c02d31ca05848d441817c43f1640c885c286c0
+      sha256: "02180b01c1237b9706b663d9402b2cf2402b3407f48cce99cc19e3200f095b8a"
       url: "https://pub.dev"
     source: hosted
-    version: "13.1.0"
+    version: "13.2.1"
   share_plus_platform_interface:
     dependency: transitive
     description:

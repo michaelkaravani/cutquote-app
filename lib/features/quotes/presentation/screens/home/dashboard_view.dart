@@ -25,6 +25,11 @@ class DashboardView extends StatelessWidget {
     required this.onShareQuote,
     required this.onConfirmDeleteQuote,
     this.dashboardSearchController,
+    this.canLoadMore = false,
+    this.isLoadingMore = false,
+    this.onLoadMore,
+    this.totalFilteredCount = 0,
+    this.hasUnloadedQuotes = false,
   });
 
   final List<Map<String, dynamic>> quotes;
@@ -48,6 +53,13 @@ class DashboardView extends StatelessWidget {
   final void Function(Map<String, dynamic> quote) onEditQuote;
   final void Function(Map<String, dynamic> quote) onShareQuote;
   final void Function(int index) onConfirmDeleteQuote;
+  
+  // Pagination
+  final bool canLoadMore;
+  final bool isLoadingMore;
+  final VoidCallback? onLoadMore;
+  final int totalFilteredCount;
+  final bool hasUnloadedQuotes;
 
   String _formatCurrency(double amount) {
     final whole = amount.floor();
@@ -146,7 +158,7 @@ class DashboardView extends StatelessWidget {
         Expanded(
           child: kpiCard(
             Icons.description_outlined,
-            '$totalQuotes',
+            hasUnloadedQuotes ? '$totalQuotes+' : '$totalQuotes',
             'הצעות',
             onTap: onClearFilter,
             isActive: selectedCustomerFilter == null && !showOnlyPending,
@@ -400,25 +412,25 @@ class DashboardView extends StatelessWidget {
                         ),
                       ),
                     )
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredQuotes.length > 5 && (dashboardSearchController?.text.isEmpty ?? true) && !showOnlyPending && selectedCustomerFilter == null
-                          ? 5
-                          : filteredQuotes.length,
-                      itemBuilder: (context, index) {
-                        final quote = filteredQuotes[index];
-                        final customerName = (quote['customer'] as Map?)?['name']?.toString() ?? 'לקוח כללי';
+                  : Column(
+                      children: [
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: filteredQuotes.length,
+                          itemBuilder: (context, index) {
+                            final quote = filteredQuotes[index];
+                            final customerName = (quote['customer'] as Map?)?['name']?.toString() ?? 'לקוח כללי';
 
-                        double total = 0;
-                        if (quote['items'] != null) {
-                          for (var item in quote['items']) {
-                            total +=
-                                ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 1);
-                          }
-                        }
+                            double total = 0;
+                            if (quote['items'] != null) {
+                              for (var item in quote['items']) {
+                                total +=
+                                    ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 1);
+                              }
+                            }
 
-                        return Card(
+                            return Card(
                           key: ValueKey(quote['id']?.toString() ?? index.toString()),
                           surfaceTintColor: Colors.transparent,
                           margin: const EdgeInsets.only(bottom: 10),
@@ -619,6 +631,62 @@ class DashboardView extends StatelessWidget {
                         );
                       },
                     ),
+                    
+                    // Pagination controls
+                    if (canLoadMore) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: isLoadingMore ? null : onLoadMore,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            side: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: isLoadingMore
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                )
+                              : const Icon(Icons.expand_more),
+                          label: Text(
+                            isLoadingMore
+                                ? 'טוען...'
+                                : 'טען עוד הצעות',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ],
+                    
+                    if (hasUnloadedQuotes) ...[
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          'מוצגות ${filteredQuotes.length} הצעות שנטענו עד כה',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
             ],
           ),
         ),

@@ -84,6 +84,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   final Set<String> _selectedQuoteIds = {};
   bool _isSelectionMode = false;
+  bool _isSharingMultiple = false;
+  int _sharingProgress = 0;
 
   void _confirmDeleteCustomer(int index, String customerName) {
     showDialog(
@@ -239,39 +241,69 @@ class _CustomersScreenState extends State<CustomersScreen> {
     final selected = widget.quotes
         .where((q) => _selectedQuoteIds.contains(q['id']))
         .toList();
-    if (selected.isEmpty) return;
+    if (selected.isEmpty || _isSharingMultiple) return;
 
-    final totalAmount = selected.fold<double>(
-      0,
-      (prev, q) => prev + ((q['total'] as num?)?.toDouble() ?? 0),
+    setState(() {
+      _isSharingMultiple = true;
+      _sharingProgress = 0;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  Text(
+                    'מכין קבצים... ($_sharingProgress/${selected.length})',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
-    final senderName =
-        widget.businessName.isNotEmpty ? widget.businessName : 'העסק';
-    final message =
-        'שיתוף ${selected.length} הצעות מחיר מסך כולל של ₪${totalAmount.toStringAsFixed(0)}. תודה, $senderName.';
-
-    await Clipboard.setData(ClipboardData(text: message));
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
 
     try {
+      final totalAmount = selected.fold<double>(
+        0,
+        (prev, q) => prev + ((q['total'] as num?)?.toDouble() ?? 0),
+      );
+      final senderName =
+          widget.businessName.isNotEmpty ? widget.businessName : 'העסק';
+      final message =
+          'שיתוף ${selected.length} הצעות מחיר מסך כולל של ₪${totalAmount.toStringAsFixed(0)}. תודה, $senderName.';
+
+      await Clipboard.setData(ClipboardData(text: message));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
-      final freshProfile =
-          await FirestoreService.loadProfile(uid);
+      if (uid == null) throw Exception("User not logged in");
+      final freshProfile = await FirestoreService.loadProfile(uid);
       if (!mounted) return;
       final profile = freshProfile ?? widget.profile;
 
       final files = <XFile>[];
       final tempDir = await getTemporaryDirectory();
 
+      if (!mounted) return;
       for (int i = 0; i < selected.length; i++) {
         final q = selected[i];
         final bytes = await PdfService.generateQuotePdfBytes(
@@ -293,10 +325,21 @@ class _CustomersScreenState extends State<CustomersScreen> {
         final file = File('${tempDir.path}/${safeName}_$i.pdf');
         await file.writeAsBytes(bytes);
         files.add(XFile(file.path));
+
+        if (mounted) {
+          setState(() {
+            _sharingProgress = i + 1;
+          });
+          // This is a bit of a hack to force the dialog to rebuild
+          // A better solution would involve a dedicated state management for the dialog
+          (context as Element).markNeedsBuild();
+        }
       }
 
+       if (!mounted) return;
+       Navigator.of(context).pop(); // Dismiss the progress dialog
+
       await SharePlus.instance.share(ShareParams(files: files));
-      if (!mounted) return;
 
       for (final f in files) {
         final file = File(f.path);
@@ -307,16 +350,24 @@ class _CustomersScreenState extends State<CustomersScreen> {
         });
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בשיתוף ההצעות: $e'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
+      if (mounted) {
+        Navigator.of(context).pop(); // Dismiss on error too
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('שגיאה בשיתוף ההצעות: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharingMultiple = false;
+          _sharingProgress = 0;
+        });
+        _exitSelectionMode();
+      }
     }
-
-    _exitSelectionMode();
   }
 
   void _openAddCustomerDialog() {
@@ -514,8 +565,10 @@ class _CustomersScreenState extends State<CustomersScreen> {
         floatingActionButton: _isSelectionMode
             ? (_selectedQuoteIds.isNotEmpty
                 ? FloatingActionButton.extended(
-                    onPressed: () { _shareSelectedQuotes(); },
-                    backgroundColor: Theme.of(context).colorScheme.secondary,
+                    onPressed: _isSharingMultiple ? null : _shareSelectedQuotes,
+                    backgroundColor: _isSharingMultiple
+                        ? Colors.grey
+                        : Theme.of(context).colorScheme.secondary,
                     icon: const Icon(Icons.share, color: Colors.white),
                     label: Text(
                       'שתף ${_selectedQuoteIds.length} הצעות',

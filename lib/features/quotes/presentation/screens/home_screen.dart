@@ -31,6 +31,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String get _businessName => _profile?['businessName'] as String? ?? '';
   Map<String, dynamic>? _profile;
 
+  // Firestore cursor pagination for quote history.
+  static const int _quotesPerPage = 50;
+  DocumentSnapshot<Map<String, dynamic>>? _lastQuoteDocument;
+  bool _hasMoreQuotes = false;
+  bool _isLoadingMore = false;
+  bool _isLoadingAllQuotes = false;
+
   String? _selectedCustomerFilter;
   bool _showOnlyPending = false;
   String _dashboardSearchQuery = '';
@@ -78,6 +85,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return result;
   }
 
+  bool get _canLoadMore {
+    return _hasMoreQuotes &&
+        _dashboardSearchQuery.trim().isEmpty &&
+        !_showOnlyPending &&
+        _selectedCustomerFilter == null;
+  }
+
   // מזהה המשתמש המחובר - כל הנתונים מבודדים תחת ה-uid הזה ב-Firestore
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
 
@@ -98,21 +112,100 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Future<void> _loadMoreQuotes() async {
+    if (_isLoadingMore || !_canLoadMore) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      final page = await FirestoreService.loadQuotesPage(
+        _uid,
+        limit: _quotesPerPage,
+        startAfter: _lastQuoteDocument,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        final existingIds = _globalQuotes
+            .map((quote) => quote['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        _globalQuotes.addAll(
+          page.quotes.where(
+            (quote) => !existingIds.contains(quote['id']?.toString()),
+          ),
+        );
+        _lastQuoteDocument = page.lastDocument ?? _lastQuoteDocument;
+        _hasMoreQuotes = page.hasMore;
+        _isLoadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בטעינת הצעות נוספות: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadAllRemainingQuotes() async {
+    if (_isLoadingAllQuotes || !_hasMoreQuotes) return;
+
+    setState(() => _isLoadingAllQuotes = true);
+    try {
+      while (_hasMoreQuotes) {
+        final page = await FirestoreService.loadQuotesPage(
+          _uid,
+          limit: _quotesPerPage,
+          startAfter: _lastQuoteDocument,
+        );
+        if (!mounted) return;
+
+        final existingIds = _globalQuotes
+            .map((quote) => quote['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        _globalQuotes.addAll(
+          page.quotes.where(
+            (quote) => !existingIds.contains(quote['id']?.toString()),
+          ),
+        );
+        _lastQuoteDocument = page.lastDocument ?? _lastQuoteDocument;
+        _hasMoreQuotes = page.hasMore;
+      }
+
+      if (!mounted) return;
+      setState(() => _isLoadingAllQuotes = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingAllQuotes = false);
+      rethrow;
+    }
+  }
+
   Future<void> _loadAllData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
       final customers = await FirestoreService.loadCustomers(_uid);
       final catalog = await FirestoreService.loadCatalog(_uid);
-      final quotes = await FirestoreService.loadQuotes(_uid);
+      final quotePage = await FirestoreService.loadQuotesPage(
+        _uid,
+        limit: _quotesPerPage,
+      );
       final profile = await FirestoreService.loadProfile(_uid);
 
       if (!mounted) return;
       setState(() {
         _globalCustomers = customers;
-        _globalQuotes = quotes;
+        _globalQuotes = quotePage.quotes;
         _globalCatalog = catalog; // פשוט טוען את מה שיש, בלי מוצרי ברירת מחדל!
         _profile = profile;
+        _lastQuoteDocument = quotePage.lastDocument;
+        _hasMoreQuotes = quotePage.hasMore;
+        _isLoadingMore = false;
         _isLoading = false;
       });
     } catch (e) {
@@ -173,6 +266,107 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _deleteCustomer(int index) async {
     final customer = _globalCustomers[index];
     final docId = customer['id'];
+    
+    // Check if customer has any quotes
+    final customerQuotes = _globalQuotes.where((quote) {
+      final qc = quote['customer'] as Map?;
+      if (qc == null) return false;
+      return qc['id'] == docId;
+    }).toList();
+    
+    if (customerQuotes.isNotEmpty) {
+      // Show warning dialog
+      if (!mounted) return;
+      final shouldDelete = await showDialog<bool>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.orange,
+                  size: 28,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'אזהרה',
+                    style: TextStyle(
+                      color: Colors.orange,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ללקוח "${customer['name']}" יש ${customerQuotes.length} הצעות מחיר פעילות.',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'מחיקת הלקוח לא תמחק את ההצעות, אך הן יישארו עם נתוני לקוח מנותקים.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'מומלץ למחוק תחילה את כל ההצעות של הלקוח',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.orange.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('ביטול'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('מחק בכל זאת'),
+              ),
+            ],
+          ),
+        ),
+      );
+      
+      if (shouldDelete != true) return;
+    }
 
     setState(() {
       _globalCustomers.removeAt(index);
@@ -536,6 +730,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _consolidateCustomerQuotesAsPdf(Map<String, String> customer) async {
+    await _loadAllRemainingQuotes();
+    if (!mounted) return;
+
     final customerQuotes = _globalQuotes
         .where(
           (quote) {
@@ -606,7 +803,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _showCustomerFilterSheet() {
+  Future<void> _showCustomerFilterSheet() async {
+    try {
+      await _loadAllRemainingQuotes();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בטעינת רשימת הלקוחות: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+
     final uniqueCustomers = <Map<String, String>>[];
     final seen = <String>{};
     for (final q in _globalQuotes) {
@@ -696,6 +907,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     try {
+      await _loadAllRemainingQuotes();
+      if (!mounted) return;
+
       final vatRate = (_profile?['vatRate'] as num?)?.toDouble() ?? 0.18;
       final vatExempt = _profile?['vatExempt'] == true;
       await CsvExportService.exportMonthlyRevenue(
@@ -763,6 +977,11 @@ class _HomeScreenState extends State<HomeScreen> {
       onShareQuote: _shareQuote,
       onConfirmDeleteQuote: _confirmDeleteQuote,
       dashboardSearchController: _dashboardSearchController,
+      canLoadMore: _canLoadMore,
+      isLoadingMore: _isLoadingMore,
+      onLoadMore: _loadMoreQuotes,
+      totalFilteredCount: _filteredQuotes.length,
+      hasUnloadedQuotes: _hasMoreQuotes,
     );
   }
 

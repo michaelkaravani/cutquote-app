@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cutquote/core/quote_status.dart';
@@ -89,7 +88,8 @@ class CsvExportService {
       index++;
     }
 
-    final csvString = const ListToCsvConverter().convert(rows);
+    // Convert rows to CSV format
+    final csvString = rows.map((row) => row.join(',')).join('\n');
     final bom = '\uFEFF';
     final csvWithBom = bom + csvString;
 

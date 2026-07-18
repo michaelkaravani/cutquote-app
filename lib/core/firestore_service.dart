@@ -83,12 +83,39 @@ class FirestoreService {
   // --- הצעות מחיר ---
 
   static Future<List<Map<String, dynamic>>> loadQuotes(String uid) async {
-    final snapshot = await _quotes(uid).orderBy('createdAt').get();
-    return snapshot.docs.map((doc) {
-      final data = Map<String, dynamic>.from(doc.data());
-      data['id'] = doc.id;
-      return data;
-    }).toList();
+    final snapshot = await _quotes(uid)
+        .orderBy('createdAt', descending: true)
+        .get();
+    return snapshot.docs.map(_quoteFromDocument).toList();
+  }
+
+  static Future<QuotePage> loadQuotesPage(
+    String uid, {
+    int limit = 50,
+    DocumentSnapshot<Map<String, dynamic>>? startAfter,
+  }) async {
+    Query<Map<String, dynamic>> query = _quotes(uid)
+        .orderBy('createdAt', descending: true)
+        .limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final snapshot = await query.get();
+    return QuotePage(
+      quotes: snapshot.docs.map(_quoteFromDocument).toList(),
+      lastDocument: snapshot.docs.isEmpty ? null : snapshot.docs.last,
+      hasMore: snapshot.docs.length == limit,
+    );
+  }
+
+  static Map<String, dynamic> _quoteFromDocument(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = Map<String, dynamic>.from(doc.data());
+    data['id'] = doc.id;
+    return data;
   }
 
   static Future<int> nextQuoteNumber(String uid) async {
@@ -140,4 +167,16 @@ class FirestoreService {
         .doc(uid)
         .set(profile, SetOptions(merge: true));
   }
+}
+
+class QuotePage {
+  const QuotePage({
+    required this.quotes,
+    required this.lastDocument,
+    required this.hasMore,
+  });
+
+  final List<Map<String, dynamic>> quotes;
+  final DocumentSnapshot<Map<String, dynamic>>? lastDocument;
+  final bool hasMore;
 }
