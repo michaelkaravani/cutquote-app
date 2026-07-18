@@ -7,7 +7,7 @@ Map<String, dynamic> extractProfile(Map<String, dynamic>? profile) {
     'phone': profile?['phone'] as String? ?? '',
     'email': profile?['email'] as String? ?? '',
     'logoPath': profile?['logoPath'] as String?,
-    'vatRate': (profile?['vatRate'] as num?)?.toDouble() ?? 0.17,
+    'vatRate': (profile?['vatRate'] as num?)?.toDouble() ?? 0.18,
     'vatExempt': profile?['vatExempt'] == true,
     'defaultPdfNotes': profile?['defaultPdfNotes'] as String? ?? '',
     'paymentTerms': profile?['paymentTerms'] as String? ?? '',

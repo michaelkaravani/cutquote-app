@@ -72,6 +72,10 @@ class FirestoreService {
     return docRef.id;
   }
 
+  static Future<void> updateCatalogItem(String uid, String docId, Map<String, dynamic> data) async {
+    await _catalog(uid).doc(docId).update(data);
+  }
+
   static Future<void> deleteCatalogItem(String uid, String docId) async {
     await _catalog(uid).doc(docId).delete();
   }
@@ -87,15 +91,25 @@ class FirestoreService {
     }).toList();
   }
 
-  static Future<String> addQuote(String uid, Map<String, dynamic> quote) async {
-    final docRef = await _quotes(
-      uid,
-    ).add({
+  static Future<int> nextQuoteNumber(String uid) async {
+    final snapshot = await _quotes(uid)
+        .orderBy('quoteNumber', descending: true)
+        .limit(1)
+        .get();
+    if (snapshot.docs.isEmpty) return 1001;
+    final lastNumber = snapshot.docs.first.data()['quoteNumber'] as int?;
+    return (lastNumber ?? 1000) + 1;
+  }
+
+  static Future<Map<String, dynamic>> addQuote(String uid, Map<String, dynamic> quote) async {
+    final number = await nextQuoteNumber(uid);
+    final docRef = await _quotes(uid).add({
       ...quote,
+      'quoteNumber': number,
       'status': quote['status'] ?? 'draft',
       'createdAt': FieldValue.serverTimestamp(),
     });
-    return docRef.id;
+    return {'id': docRef.id, 'quoteNumber': number};
   }
 
   static Future<void> updateQuote(

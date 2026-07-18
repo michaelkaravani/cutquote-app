@@ -68,7 +68,7 @@ class CsvExportService {
       final vatAmount = vatExempt ? 0 : netAmount * vatRate;
       final totalAmount = vatExempt ? netAmount : netAmount + vatAmount;
 
-      final quoteNumber = 1000 + index;
+      final quoteNumber = quote['quoteNumber'] as int? ?? (1000 + index);
 
       rows.add([
         quoteNumber.toString(),

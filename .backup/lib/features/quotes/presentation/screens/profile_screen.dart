@@ -66,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _businessNameController.text = profile?['businessName'] ?? '';
         _phoneController.text = profile?['phone'] ?? '';
-        _vatRateController.text = (((profile?['vatRate'] as num?)?.toDouble() ?? 0.17) * 100).toStringAsFixed(1);
+        _vatRateController.text = (((profile?['vatRate'] as num?)?.toDouble() ?? 0.18) * 100).toStringAsFixed(1);
 
         _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
         _paymentTermsController.text = profile?['paymentTerms'] ?? '';
@@ -140,7 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirestoreService.saveProfile(_uid, {
         'businessName': _businessNameController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'vatRate': _vatExempt ? 0.0 : ((double.tryParse(_vatRateController.text) ?? 17) / 100),
+        'vatRate': (double.tryParse(_vatRateController.text) ?? 18) / 100,
         'vatExempt': _vatExempt,
         'logoPath': _logoPath,
         'defaultPdfNotes': _pdfNotesController.text.trim(),
@@ -412,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'לדוגמה: 17',
+                          'לדוגמה: 18',
                           style: TextStyle(
                             fontSize: 11,
                             color: Theme.of(context)
@@ -423,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         TextFormField(
                           controller: _vatRateController,
-                          enabled: _isEditing && !_vatExempt,
+                          enabled: _isEditing,
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),

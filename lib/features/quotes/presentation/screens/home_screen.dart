@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedCustomerFilter;
   bool _showOnlyPending = false;
   String _dashboardSearchQuery = '';
+  final _dashboardSearchController = TextEditingController();
 
   List<Map<String, dynamic>> get _filteredQuotes {
     var result = _globalQuotes.toList()
@@ -83,7 +84,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _dashboardSearchController.addListener(() {
+      setState(() {
+        _dashboardSearchQuery = _dashboardSearchController.text;
+      });
+    });
     _loadAllData();
+  }
+
+  @override
+  void dispose() {
+    _dashboardSearchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAllData() async {
@@ -194,6 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onAddToCatalog: _addCatalogItem,
       onSaveQuote: _saveQuote,
       onDeleteFromCatalog: _confirmDeleteCatalogItem,
+      onEditCatalogItem: _updateCatalogItem,
       onUpdateQuote: _updateQuote,
     );
   }
@@ -296,6 +309,34 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _updateCatalogItem(int index, Map<String, dynamic> updatedItem) async {
+    final original = _globalCatalog[index];
+    final docId = original['id'];
+    if (docId == null) return;
+
+    final data = Map<String, dynamic>.from(updatedItem);
+    data.remove('id');
+
+    setState(() {
+      _globalCatalog[index] = Map<String, dynamic>.from(updatedItem)..['id'] = docId;
+    });
+
+    try {
+      await FirestoreService.updateCatalogItem(_uid, docId, data);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _globalCatalog[index] = original;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בעדכון פריט: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   void _confirmDeleteCatalogItem(int index) {
     final itemName = _globalCatalog[index]['name'] ?? '';
     showDialog(
@@ -379,10 +420,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _saveQuote(Map<String, dynamic> newQuote) async {
     try {
-      final id = await FirestoreService.addQuote(_uid, newQuote);
+      final result = await FirestoreService.addQuote(_uid, newQuote);
       if (!mounted) return;
       final withId = Map<String, dynamic>.from(newQuote)
-        ..['id'] = id
+        ..['id'] = result['id']
+        ..['quoteNumber'] = result['quoteNumber']
         ..['createdAt'] = Timestamp.now();
       setState(() {
         _globalQuotes.add(withId);
@@ -720,8 +762,7 @@ class _HomeScreenState extends State<HomeScreen> {
       onEditQuote: _editQuote,
       onShareQuote: _shareQuote,
       onConfirmDeleteQuote: _confirmDeleteQuote,
-      dashboardSearchQuery: _dashboardSearchQuery,
-      onDashboardSearchChanged: (query) => setState(() => _dashboardSearchQuery = query),
+      dashboardSearchController: _dashboardSearchController,
     );
   }
 
@@ -779,6 +820,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onAddToCatalog: _addCatalogItem,
         onSaveQuote: _saveQuote,
         onDeleteFromCatalog: _confirmDeleteCatalogItem,
+        onEditCatalogItem: _updateCatalogItem,
       ),
       _buildDashboardView(),
     ];

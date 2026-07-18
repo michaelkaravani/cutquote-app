@@ -35,7 +35,7 @@ dependencies:
   printing: ^5.13.2
   share_plus: ^13.1.0
   shared_preferences: ^2.3.5
-  csv: ^6.0.0
+  csv: ^8.0.0
   path_provider: ^2.1.0
   url_launcher: ^6.3.0
 
@@ -48,7 +48,7 @@ dependencies:
   firebase_auth: ^6.5.4
   cloud_firestore: ^6.0.0
   image_picker: ^1.1.2
-  local_auth: ^2.3.0
+  local_auth: ^3.0.2
   flutter_secure_storage: ^10.3.1
   flutter_animate: ^4.5.2
 
@@ -62,7 +62,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  flutter_launcher_icons: "^0.13.1"
+  flutter_launcher_icons: "^0.14.4"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

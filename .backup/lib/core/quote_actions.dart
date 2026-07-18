@@ -8,11 +8,6 @@ import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder_screen.dart';
 
 class QuoteActions {
-  static int displayNumber(Map<String, dynamic> quote, List<Map<String, dynamic>> allQuotes) {
-    return quote['quoteNumber'] as int? ??
-        (allQuotes.indexWhere((q) => q['id'] == quote['id']) + 1001);
-  }
-
   static void editQuote({
     required BuildContext context,
     required Map<String, dynamic> quote,
@@ -22,7 +17,6 @@ class QuoteActions {
     required void Function(Map<String, dynamic>) onAddToCatalog,
     required void Function(Map<String, dynamic>) onSaveQuote,
     required void Function(int) onDeleteFromCatalog,
-    required void Function(int, Map<String, dynamic>) onEditCatalogItem,
     required void Function(Map<String, dynamic>) onUpdateQuote,
   }) {
     context.push(QuoteBuilderScreen(
@@ -32,7 +26,6 @@ class QuoteActions {
       onAddToCatalog: onAddToCatalog,
       onSaveQuote: onSaveQuote,
       onDeleteFromCatalog: onDeleteFromCatalog,
-      onEditCatalogItem: onEditCatalogItem,
       initialQuote: quote,
       onUpdateQuote: onUpdateQuote,
     ));
@@ -67,8 +60,9 @@ class QuoteActions {
     required String uid,
     required Map<String, dynamic>? profile,
   }) async {
+    final index = allQuotes.indexWhere((q) => q['id'] == quote['id']);
     final customerName = (quote['customer'] as Map?)?['name']?.toString() ?? 'לקוח';
-    final quoteNumber = displayNumber(quote, allQuotes);
+    final quoteNumber = index + 1001;
     final quoteTitle = quote['title']?.toString() ?? 'הצעת מחיר';
     final total = (quote['total'] as num?)?.toDouble() ?? 0.0;
     final totalFormatted = total.toStringAsFixed(0);

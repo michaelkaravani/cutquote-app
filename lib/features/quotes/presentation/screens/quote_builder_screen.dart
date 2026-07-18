@@ -14,6 +14,7 @@ class QuoteBuilderScreen extends StatefulWidget {
   final Function(Map<String, dynamic>) onAddToCatalog;
   final Function(Map<String, dynamic>) onSaveQuote;
   final Function(int)? onDeleteFromCatalog;
+  final Function(int, Map<String, dynamic>)? onEditCatalogItem;
   final Map<String, dynamic>? initialQuote;
   final Function(Map<String, dynamic>)? onUpdateQuote;
 
@@ -25,6 +26,7 @@ class QuoteBuilderScreen extends StatefulWidget {
     required this.onAddToCatalog,
     required this.onSaveQuote,
     this.onDeleteFromCatalog,
+    this.onEditCatalogItem,
     this.initialQuote,
     this.onUpdateQuote,
   });
@@ -480,6 +482,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           );
                           setState(() {
                             _isSaving = false;
+                            _discount = 0.0;
                             items.clear();
                             selectedCustomer = null;
                             titleController.clear();
@@ -576,20 +579,35 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                         subtitle: Text("₪${(catItem['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}"),
-                        trailing: IconButton(
-                          icon: Icon(
-                            Icons.delete_outline,
-                            size: 18,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.4),
-                          ),
-                          onPressed: () {
-                            if (widget.onDeleteFromCatalog != null) {
-                              widget.onDeleteFromCatalog!(index);
-                            }
-                          },
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary,
+                              ),
+                              onPressed: () => _editCatalogItem(index, catItem),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.delete_outline,
+                                size: 18,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.4),
+                              ),
+                              onPressed: () {
+                                if (widget.onDeleteFromCatalog != null) {
+                                  widget.onDeleteFromCatalog!(index);
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -598,6 +616,94 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _editCatalogItem(int index, Map<String, dynamic> item) {
+    final nameController = TextEditingController(text: item['name']?.toString() ?? '');
+    final priceController = TextEditingController(
+      text: ((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'עריכת פריט',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'שם הפריט / השירות',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: 'מחיר ליחידה',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                nameController.dispose();
+                priceController.dispose();
+                Navigator.pop(ctx);
+              },
+              child: Text(
+                'ביטול',
+                style: TextStyle(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.6),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                final price = double.tryParse(priceController.text.trim());
+                if (name.isEmpty || price == null || price < 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('מחיר לא תקין'),
+                      backgroundColor: Colors.redAccent,
+                    ),
+                  );
+                  return;
+                }
+                widget.onEditCatalogItem!(index, {'name': name, 'price': price});
+                nameController.dispose();
+                priceController.dispose();
+                Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('שמירה'),
+            ),
+          ],
         ),
       ),
     );

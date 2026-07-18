@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cutquote/core/quote_actions.dart';
 import 'package:cutquote/core/quote_status.dart';
 
 class DashboardView extends StatelessWidget {
@@ -23,8 +24,7 @@ class DashboardView extends StatelessWidget {
     required this.onEditQuote,
     required this.onShareQuote,
     required this.onConfirmDeleteQuote,
-    this.dashboardSearchQuery = '',
-    this.onDashboardSearchChanged,
+    this.dashboardSearchController,
   });
 
   final List<Map<String, dynamic>> quotes;
@@ -32,8 +32,7 @@ class DashboardView extends StatelessWidget {
   final String businessName;
   final String? selectedCustomerFilter;
   final bool showOnlyPending;
-  final String dashboardSearchQuery;
-  final ValueChanged<String>? onDashboardSearchChanged;
+  final TextEditingController? dashboardSearchController;
   final VoidCallback onShowCustomerFilter;
   final VoidCallback onExportMonthlyRevenue;
   final VoidCallback onProfileTap;
@@ -350,10 +349,7 @@ class DashboardView extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: TextField(
-                    controller: TextEditingController.fromValue(
-                      TextEditingValue(text: dashboardSearchQuery),
-                    ),
-                    onChanged: onDashboardSearchChanged,
+                    controller: dashboardSearchController,
                     decoration: InputDecoration(
                       hintText: 'חיפוש הצעות מחיר...',
                       prefixIcon: const Icon(Icons.search, size: 20),
@@ -366,7 +362,6 @@ class DashboardView extends StatelessWidget {
                         vertical: 8,
                       ),
                     ),
-                    textDirection: TextDirection.rtl,
                   ),
                 ),
               quotes.isEmpty
@@ -408,7 +403,7 @@ class DashboardView extends StatelessWidget {
                   : ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredQuotes.length > 5 && dashboardSearchQuery.isEmpty && !showOnlyPending && selectedCustomerFilter == null
+                      itemCount: filteredQuotes.length > 5 && (dashboardSearchController?.text.isEmpty ?? true) && !showOnlyPending && selectedCustomerFilter == null
                           ? 5
                           : filteredQuotes.length,
                       itemBuilder: (context, index) {
@@ -452,7 +447,7 @@ class DashboardView extends StatelessWidget {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            '${quote['title'] ?? 'הצעת מחיר'} #${quote['id'] != null ? quotes.indexWhere((q) => q['id'] == quote['id']) + 1001 : 1000}',
+                                            '${quote['title'] ?? 'הצעת מחיר'} #${QuoteActions.displayNumber(quote, quotes)}',
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               color: Theme.of(context)
@@ -473,7 +468,7 @@ class DashboardView extends StatelessWidget {
                                       ),
                                     ),
                                     Text(
-                                      '₪ ${total.toStringAsFixed(0)}',
+                                      '${total.toStringAsFixed(0)} ₪',
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Theme.of(context).colorScheme.secondary,

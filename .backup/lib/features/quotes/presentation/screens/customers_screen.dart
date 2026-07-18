@@ -57,9 +57,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
     final quoteNumbers = <String, int>{};
     for (int i = 0; i < widget.quotes.length; i++) {
-      final q = widget.quotes[i];
-      final id = q['id'];
-      if (id != null) quoteNumbers[id] = q['quoteNumber'] as int? ?? (i + 1001);
+      final id = widget.quotes[i]['id'];
+      if (id != null) quoteNumbers[id] = i + 1001;
     }
 
     return widget.customers.where((customer) {
