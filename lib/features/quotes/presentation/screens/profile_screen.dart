@@ -3,13 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cutquote/core/navigation.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/app_theme.dart';
 import 'package:cutquote/core/theme_notifier.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/logo_picker.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/theme_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/pdf_template_chooser.dart';
 import 'about_screen.dart';
 
@@ -66,7 +67,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _businessNameController.text = profile?['businessName'] ?? '';
         _phoneController.text = profile?['phone'] ?? '';
-        _vatRateController.text = (((profile?['vatRate'] as num?)?.toDouble() ?? 0.17) * 100).toStringAsFixed(1);
+        _vatRateController.text =
+            (((profile?['vatRate'] as num?)?.toDouble() ?? 0.17) * 100)
+                .toStringAsFixed(1);
 
         _pdfNotesController.text = profile?['defaultPdfNotes'] ?? '';
         _paymentTermsController.text = profile?['paymentTerms'] ?? '';
@@ -140,7 +143,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirestoreService.saveProfile(_uid, {
         'businessName': _businessNameController.text.trim(),
         'phone': _phoneController.text.trim(),
-        'vatRate': _vatExempt ? 0.0 : ((double.tryParse(_vatRateController.text) ?? 17) / 100),
+        'vatRate': _vatExempt
+            ? 0.0
+            : ((double.tryParse(_vatRateController.text) ?? 17) / 100),
         'vatExempt': _vatExempt,
         'logoPath': _logoPath,
         'defaultPdfNotes': _pdfNotesController.text.trim(),
@@ -207,21 +212,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-    );
-    if (picked == null) return;
-
     try {
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName = 'business_logo_${DateTime.now().millisecondsSinceEpoch}.${picked.path.split('.').last}';
-      final savedPath = '${dir.path}/$fileName';
-      await File(picked.path).copy(savedPath);
-      if (!mounted) return;
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['svg', 'png', 'jpg', 'jpeg'],
+      );
 
+      if (result == null || result.files.single.path == null) return;
+
+      final file = result.files.single;
+      final sourceFile = File(file.path!);
+      final extension = file.extension?.toLowerCase();
+
+      if (file.size > 5 * 1024 * 1024) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('הקובץ גדול מדי. המגבלה היא 5MB.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      var isValid = false;
+      if (extension == 'svg') {
+        final svgContent = await sourceFile.readAsString();
+        final svgRootPattern = RegExp(r'<svg(?:\s|>)', caseSensitive: false);
+        isValid =
+            svgRootPattern.hasMatch(svgContent) &&
+            svgContent.toLowerCase().contains('</svg>');
+      } else if (extension == 'png' ||
+          extension == 'jpg' ||
+          extension == 'jpeg') {
+        isValid = img.decodeImage(await sourceFile.readAsBytes()) != null;
+      }
+
+      if (!isValid) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('קובץ הלוגו פגום או אינו בפורמט נתמך.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final dir = await getApplicationDocumentsDirectory();
+      final fileName =
+          'business_logo_${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final savedPath = '${dir.path}/$fileName';
+
+      // Copy the file to a persistent location
+      await File(file.path!).copy(savedPath);
+
+      if (!mounted) return;
       setState(() {
         _logoPath = savedPath;
       });
@@ -229,7 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('שגיאה בשמירת הלוגו: $e'),
+          content: Text('שגיאה בבחירת הלוגו: $e'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -296,10 +342,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'מנהל מערכת',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -317,10 +362,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'שם העסק / פרופיל',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -333,9 +377,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -343,10 +387,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'כתובת אימייל',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -359,9 +402,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                             helperText: 'לא ניתן לשינוי כאן',
                           ),
                         ),
@@ -370,10 +413,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'מספר טלפון',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -387,12 +429,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               size: 20,
                             ),
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                           ),
                           validator: (value) {
-                            if (value != null && value.isNotEmpty && !RegExp(r'^[\d+\- ]+$').hasMatch(value)) {
+                            if (value != null &&
+                                value.isNotEmpty &&
+                                !RegExp(r'^[\d+\- ]+$').hasMatch(value)) {
                               return 'מספר טלפון לא תקין';
                             }
                             return null;
@@ -403,10 +447,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'אחוז מע"מ',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -415,10 +458,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'לדוגמה: 17',
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.5),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.5),
                           ),
                         ),
                         TextFormField(
@@ -428,14 +470,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             decimal: true,
                           ),
                           decoration: InputDecoration(
-                            prefixIcon: const Icon(
-                              Icons.percent,
-                              size: 20,
-                            ),
+                            prefixIcon: const Icon(Icons.percent, size: 20),
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
@@ -453,7 +492,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           contentPadding: EdgeInsets.zero,
                           title: const Text(
                             'עוסק פטור ממע"מ',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
                           subtitle: const Text(
                             'אינו גובה מע"מ ואינו מנכה מע"מ',
@@ -476,10 +518,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'לוגו עסק',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -488,18 +529,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           logoPath: _logoPath,
                           isEditing: _isEditing,
                           onPickLogo: _pickLogo,
-                          onClearLogo: () =>
-                              setState(() => _logoPath = null),
+                          onClearLogo: () => setState(() => _logoPath = null),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "לשקיפות מלאה, העלה קובץ SVG עם רקע שקוף",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'הערות ברירת מחדל לתחתית ה-PDF',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -509,12 +559,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           enabled: _isEditing,
                           maxLines: 4,
                           decoration: InputDecoration(
-                            hintText:
-                                'לדוגמה: הצעת המחיר בתוקף ל-30 יום',
+                            hintText: 'לדוגמה: הצעת המחיר בתוקף ל-30 יום',
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -522,10 +571,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           'תנאי תשלום ל-PDF',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                           ),
                         ),
@@ -535,12 +583,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           enabled: _isEditing,
                           maxLines: 2,
                           decoration: InputDecoration(
-                            hintText:
-                                'לדוגמה: תשלום עם קבלת ההצעה',
+                            hintText: 'לדוגמה: תשלום עם קבלת ההצעה',
                             filled: true,
-                            fillColor: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerLow,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerLow,
                           ),
                         ),
                       ],
@@ -602,20 +649,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '${themeNotifier.themeStyle.label} • ${_themeModeLabel(themeNotifier.themeMode)}',
                         style: TextStyle(
                           fontSize: 13,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.6),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ),
                     trailing: Icon(
                       Icons.arrow_back_ios_new,
                       size: 16,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     onTap: () => ThemePicker.show(context),
                   ),
@@ -637,10 +682,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     trailing: Icon(
                       Icons.arrow_back_ios_new,
                       size: 16,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     onTap: () {
                       context.push(const AboutScreen());
@@ -683,5 +727,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-
 }

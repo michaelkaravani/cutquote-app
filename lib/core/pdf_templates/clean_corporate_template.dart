@@ -39,11 +39,17 @@ Future<Uint8List> buildCleanCorporatePdf({
   final totalWithVat = total + vatAmount;
 
   Uint8List? logoBytes;
+  String? logoSvg;
   if (logoPath != null) {
-    try {
-      final logoFile = File(logoPath);
-      logoBytes = await logoFile.readAsBytes();
-    } catch (_) {}
+    if (logoPath.toLowerCase().endsWith('.svg')) {
+      try {
+        logoSvg = await File(logoPath).readAsString();
+      } catch (_) {
+        logoSvg = null;
+      }
+    } else {
+      logoBytes = await processLogoWithTransparency(logoPath);
+    }
   }
 
   pdf.addPage(
@@ -67,20 +73,46 @@ Future<Uint8List> buildCleanCorporatePdf({
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.center,
                     children: [
-                      if (logoBytes != null)
+                      if (logoSvg != null)
                         pw.Container(
+                          width: 48,
+                          height: 48,
                           margin: const pw.EdgeInsets.only(left: 12),
-                          child: pw.Image(
-                            pw.MemoryImage(logoBytes),
-                            width: 48,
-                            height: 48,
+                          child: pw.SvgImage(svg: logoSvg),
+                        )
+                      else if (logoBytes != null)
+                        pw.Container(
+                          width: 48,
+                          height: 48,
+                          margin: const pw.EdgeInsets.only(left: 12),
+                          padding: const pw.EdgeInsets.all(5),
+                          decoration: pw.BoxDecoration(
+                            color: PdfColors.white,
+                            shape: pw.BoxShape.circle,
+                            border: pw.Border.all(color: brandTeal, width: 1.5),
+                          ),
+                          child: pw.ClipOval(
+                            child: pw.Image(
+                              pw.MemoryImage(logoBytes),
+                              fit: pw.BoxFit.contain,
+                            ),
                           ),
                         ),
                       pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text(businessName, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: brandTeal)),
-                          pw.Text('$phone  |  $email', style: pw.TextStyle(fontSize: 8, color: textMuted)),
+                          pw.Text(
+                            businessName,
+                            style: pw.TextStyle(
+                              fontSize: 16,
+                              fontWeight: pw.FontWeight.bold,
+                              color: brandTeal,
+                            ),
+                          ),
+                          pw.Text(
+                            '$phone  |  $email',
+                            style: pw.TextStyle(fontSize: 8, color: textMuted),
+                          ),
                         ],
                       ),
                     ],
@@ -88,7 +120,14 @@ Future<Uint8List> buildCleanCorporatePdf({
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('הצעת מחיר', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: brandTeal)),
+                      pw.Text(
+                        'הצעת מחיר',
+                        style: pw.TextStyle(
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold,
+                          color: brandTeal,
+                        ),
+                      ),
                       pw.Text(
                         todayFormatted(),
                         style: pw.TextStyle(fontSize: 8, color: textMuted),
@@ -118,16 +157,48 @@ Future<Uint8List> buildCleanCorporatePdf({
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('פרטי הלקוח', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: brandTeal)),
+                          pw.Text(
+                            'פרטי הלקוח',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: brandTeal,
+                            ),
+                          ),
                           pw.SizedBox(height: 6),
-                          pw.Text(customer?['name'] ?? 'לקוח כללי', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: textDark)),
+                          pw.Text(
+                            customer?['name'] ?? 'לקוח כללי',
+                            style: pw.TextStyle(
+                              fontSize: 13,
+                              fontWeight: pw.FontWeight.bold,
+                              color: textDark,
+                            ),
+                          ),
                           if (customer != null) ...[
                             if ((customer['hp'] ?? '').isNotEmpty)
-                              pw.Text('ח.פ/ת.ז: ${customer['hp']}', style: pw.TextStyle(fontSize: 9, color: textDark)),
+                              pw.Text(
+                                'ח.פ/ת.ז: ${customer['hp']}',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  color: textDark,
+                                ),
+                              ),
                             if ((customer['address'] ?? '').isNotEmpty)
-                              pw.Text('${customer['address']}', style: pw.TextStyle(fontSize: 9, color: textMuted)),
+                              pw.Text(
+                                '${customer['address']}',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  color: textMuted,
+                                ),
+                              ),
                             if ((customer['phone'] ?? '').isNotEmpty)
-                              pw.Text('${customer['phone']}', style: pw.TextStyle(fontSize: 9, color: textMuted)),
+                              pw.Text(
+                                '${customer['phone']}',
+                                style: pw.TextStyle(
+                                  fontSize: 9,
+                                  color: textMuted,
+                                ),
+                              ),
                           ],
                         ],
                       ),
@@ -145,13 +216,30 @@ Future<Uint8List> buildCleanCorporatePdf({
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('פרטי המסמך', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: brandTeal)),
+                          pw.Text(
+                            'פרטי המסמך',
+                            style: pw.TextStyle(
+                              fontSize: 8,
+                              fontWeight: pw.FontWeight.bold,
+                              color: brandTeal,
+                            ),
+                          ),
                           pw.SizedBox(height: 8),
-                          metaRow('תאריך', todayFormatted(), textMuted, textDark),
+                          metaRow(
+                            'תאריך',
+                            todayFormatted(),
+                            textMuted,
+                            textDark,
+                          ),
                           pw.SizedBox(height: 4),
                           metaRow('תוקף הצעה', '30 יום', textMuted, textDark),
                           pw.SizedBox(height: 4),
-                          metaRow('מס\' הצעה', '#${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}', textMuted, textDark),
+                          metaRow(
+                            'מס\' הצעה',
+                            '#${DateTime.now().millisecondsSinceEpoch.toString().substring(6)}',
+                            textMuted,
+                            textDark,
+                          ),
                         ],
                       ),
                     ),
@@ -163,34 +251,120 @@ Future<Uint8List> buildCleanCorporatePdf({
               pw.Container(
                 decoration: pw.BoxDecoration(
                   color: brandTeal,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
-                padding: const pw.EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                padding: const pw.EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 16,
+                ),
                 child: pw.Row(
                   children: [
-                    pw.Expanded(flex: 5, child: pw.Text('תיאור הפריט / השירות', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9))),
-                    pw.Expanded(flex: 1, child: pw.Text('כמות', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center)),
-                    pw.Expanded(flex: 2, child: pw.Text('מחיר יחידה', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center)),
-                    pw.Expanded(flex: 2, child: pw.Text('סה"כ', style: pw.TextStyle(color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 9), textAlign: pw.TextAlign.center)),
+                    pw.Expanded(
+                      flex: 5,
+                      child: pw.Text(
+                        'תיאור הפריט / השירות',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 1,
+                      child: pw.Text(
+                        'כמות',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        'מחיר יחידה',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text(
+                        'סה"כ',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                        textAlign: pw.TextAlign.center,
+                      ),
+                    ),
                   ],
                 ),
               ),
 
               ...items.map((item) {
-                final qty = double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
-                final price = double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
+                final qty =
+                    double.tryParse(item['quantity']?.toString() ?? '1') ?? 1.0;
+                final price =
+                    double.tryParse(item['price']?.toString() ?? '0') ?? 0.0;
                 final itemTotal = qty * price;
                 return pw.Container(
                   decoration: pw.BoxDecoration(
-                    border: pw.Border(bottom: pw.BorderSide(color: borderLight, width: 0.5)),
+                    border: pw.Border(
+                      bottom: pw.BorderSide(color: borderLight, width: 0.5),
+                    ),
                   ),
-                  padding: const pw.EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  padding: const pw.EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
                   child: pw.Row(
                     children: [
-                      pw.Expanded(flex: 5, child: pw.Text(item['name']?.toString() ?? '', style: pw.TextStyle(fontSize: 9, color: textDark))),
-                      pw.Expanded(flex: 1, child: pw.Text(qty.toStringAsFixed(0), style: pw.TextStyle(fontSize: 9, color: textDark), textAlign: pw.TextAlign.center)),
-                      pw.Expanded(flex: 2, child: pw.Text('₪${price.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: textDark), textAlign: pw.TextAlign.center)),
-                      pw.Expanded(flex: 2, child: pw.Text('₪${itemTotal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: brandTeal), textAlign: pw.TextAlign.center)),
+                      pw.Expanded(
+                        flex: 5,
+                        child: pw.Text(
+                          item['name']?.toString() ?? '',
+                          style: pw.TextStyle(fontSize: 9, color: textDark),
+                        ),
+                      ),
+                      pw.Expanded(
+                        flex: 1,
+                        child: pw.Text(
+                          qty.toStringAsFixed(0),
+                          style: pw.TextStyle(fontSize: 9, color: textDark),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                      pw.Expanded(
+                        flex: 2,
+                        child: pw.Text(
+                          '₪${price.toStringAsFixed(2)}',
+                          style: pw.TextStyle(fontSize: 9, color: textDark),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
+                      pw.Expanded(
+                        flex: 2,
+                        child: pw.Text(
+                          '₪${itemTotal.toStringAsFixed(2)}',
+                          style: pw.TextStyle(
+                            fontSize: 9,
+                            fontWeight: pw.FontWeight.bold,
+                            color: brandTeal,
+                          ),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -216,9 +390,22 @@ Future<Uint8List> buildCleanCorporatePdf({
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
-                                pw.Text('תנאי תשלום', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: brandTeal)),
+                                pw.Text(
+                                  'תנאי תשלום',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: brandTeal,
+                                  ),
+                                ),
                                 pw.SizedBox(height: 4),
-                                pw.Text(paymentTerms, style: pw.TextStyle(fontSize: 8, color: textDark)),
+                                pw.Text(
+                                  paymentTerms,
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    color: textDark,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -228,20 +415,43 @@ Future<Uint8List> buildCleanCorporatePdf({
                           pw.Container(
                             padding: const pw.EdgeInsets.all(10),
                             decoration: pw.BoxDecoration(
-                              border: pw.Border.all(color: borderLight, width: 0.5),
+                              border: pw.Border.all(
+                                color: borderLight,
+                                width: 0.5,
+                              ),
                               borderRadius: pw.BorderRadius.circular(4),
                             ),
                             child: pw.Column(
                               crossAxisAlignment: pw.CrossAxisAlignment.start,
                               children: [
-                                pw.Text('הערות', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: textMuted)),
+                                pw.Text(
+                                  'הערות',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: textMuted,
+                                  ),
+                                ),
                                 pw.SizedBox(height: 4),
                                 if (cleanNotes.isNotEmpty)
-                                  pw.Text(cleanNotes, style: pw.TextStyle(fontSize: 8, color: textDark)),
-                                if (cleanNotes.isNotEmpty && defaultTerms.isNotEmpty)
+                                  pw.Text(
+                                    cleanNotes,
+                                    style: pw.TextStyle(
+                                      fontSize: 8,
+                                      color: textDark,
+                                    ),
+                                  ),
+                                if (cleanNotes.isNotEmpty &&
+                                    defaultTerms.isNotEmpty)
                                   pw.SizedBox(height: 4),
                                 if (defaultTerms.isNotEmpty)
-                                  pw.Text(defaultTerms, style: pw.TextStyle(fontSize: 8, color: textDark)),
+                                  pw.Text(
+                                    defaultTerms,
+                                    style: pw.TextStyle(
+                                      fontSize: 8,
+                                      color: textDark,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
@@ -261,49 +471,130 @@ Future<Uint8List> buildCleanCorporatePdf({
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          pw.Text('סיכום הצעת מחיר', style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                          pw.Text(
+                            'סיכום הצעת מחיר',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                            ),
+                          ),
                           pw.SizedBox(height: 10),
                           if (!vatExempt) ...[
                             pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('סה"כ לפני מע"מ:', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
-                                pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                                pw.Text(
+                                  'סה"כ לפני מע"מ:',
+                                  style: pw.TextStyle(
+                                    fontSize: 9,
+                                    color: PdfColor.fromInt(0xFFCCE8EA),
+                                  ),
+                                ),
+                                pw.Text(
+                                  '₪${total.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 9,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
                               ],
                             ),
                             pw.SizedBox(height: 4),
                             pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):', style: pw.TextStyle(fontSize: 9, color: PdfColor.fromInt(0xFFCCE8EA))),
-                                pw.Text('₪${vatAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 9, color: PdfColors.white)),
+                                pw.Text(
+                                  'מע"מ (${(vatRate * 100).toStringAsFixed(0)}%):',
+                                  style: pw.TextStyle(
+                                    fontSize: 9,
+                                    color: PdfColor.fromInt(0xFFCCE8EA),
+                                  ),
+                                ),
+                                pw.Text(
+                                  '₪${vatAmount.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 9,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
                               ],
                             ),
                             pw.Padding(
-                              padding: const pw.EdgeInsets.symmetric(vertical: 6),
-                              child: pw.Divider(color: PdfColor.fromInt(0x4DFFFFFF), thickness: 0.5),
+                              padding: const pw.EdgeInsets.symmetric(
+                                vertical: 6,
+                              ),
+                              child: pw.Divider(
+                                color: PdfColor.fromInt(0x4DFFFFFF),
+                                thickness: 0.5,
+                              ),
                             ),
                             pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                                pw.Text('₪${totalWithVat.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text(
+                                  'סה"כ לתשלום:',
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '₪${totalWithVat.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
                               ],
                             ),
                           ] else ...[
                             pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('סה"כ לתשלום:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
-                                pw.Text('₪${total.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                                pw.Text(
+                                  'סה"כ לתשלום:',
+                                  style: pw.TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
+                                pw.Text(
+                                  '₪${total.toStringAsFixed(2)}',
+                                  style: pw.TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.white,
+                                  ),
+                                ),
                               ],
                             ),
                             pw.SizedBox(height: 6),
                             pw.Row(
-                              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  pw.MainAxisAlignment.spaceBetween,
                               children: [
-                                pw.Text('פטור ממע"מ', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFCCE8EA))),
-                                pw.Text('עוסק פטור', style: pw.TextStyle(fontSize: 8, color: PdfColor.fromInt(0xFFCCE8EA))),
+                                pw.Text(
+                                  'פטור ממע"מ',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    color: PdfColor.fromInt(0xFFCCE8EA),
+                                  ),
+                                ),
+                                pw.Text(
+                                  'עוסק פטור',
+                                  style: pw.TextStyle(
+                                    fontSize: 8,
+                                    color: PdfColor.fromInt(0xFFCCE8EA),
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -320,7 +611,11 @@ Future<Uint8List> buildCleanCorporatePdf({
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   buildSignatureLine('חתימת בית העסק', brandTeal, textMuted),
-                  buildSignatureLine('חתימת הלקוח לאישור', brandTeal, textMuted),
+                  buildSignatureLine(
+                    'חתימת הלקוח לאישור',
+                    brandTeal,
+                    textMuted,
+                  ),
                 ],
               ),
             ],

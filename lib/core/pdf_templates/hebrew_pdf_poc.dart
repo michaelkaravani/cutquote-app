@@ -39,8 +39,10 @@ Future<Uint8List> buildHebrewPocPdf({
   Uint8List? bgImageBytes;
   try {
     final bgData = await rootBundle.load('assets/PDF-desings/blue-desing.pdf');
-    await for (final page
-        in Printing.raster(bgData.buffer.asUint8List(), dpi: 300)) {
+    await for (final page in Printing.raster(
+      bgData.buffer.asUint8List(),
+      dpi: 300,
+    )) {
       bgImageBytes = await page.toPng();
       break;
     }
@@ -74,10 +76,17 @@ Future<Uint8List> buildHebrewPocPdf({
       '${(now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0')}';
 
   Uint8List? logoBytes;
+  String? logoSvg;
   if (logoPath != null) {
-    try {
-      logoBytes = await File(logoPath).readAsBytes();
-    } catch (_) {}
+    if (logoPath.toLowerCase().endsWith('.svg')) {
+      try {
+        logoSvg = await File(logoPath).readAsString();
+      } catch (_) {
+        logoSvg = null;
+      }
+    } else {
+      logoBytes = await processLogoWithTransparency(logoPath);
+    }
   }
 
   const margin = 44.0;
@@ -153,15 +162,19 @@ Future<Uint8List> buildHebrewPocPdf({
               child: pw.Row(
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
-                  pw.Text(price,
-                      style: pw.TextStyle(
-                          fontSize: 10, color: bodyText)),
+                  pw.Text(
+                    price,
+                    style: pw.TextStyle(fontSize: 10, color: bodyText),
+                  ),
                   pw.SizedBox(width: 2),
-                  pw.Text('₪',
-                      style: pw.TextStyle(
-                          fontSize: 13,
-                          fontWeight: pw.FontWeight.bold,
-                          color: bodyText)),
+                  pw.Text(
+                    '₪',
+                    style: pw.TextStyle(
+                      fontSize: 13,
+                      fontWeight: pw.FontWeight.bold,
+                      color: bodyText,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -173,17 +186,23 @@ Future<Uint8List> buildHebrewPocPdf({
               child: pw.Row(
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
-                  pw.Text(total,
-                      style: pw.TextStyle(
-                          fontSize: 10,
-                          fontWeight: pw.FontWeight.bold,
-                          color: primaryDarkBlue)),
+                  pw.Text(
+                    total,
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryDarkBlue,
+                    ),
+                  ),
                   pw.SizedBox(width: 2),
-                  pw.Text('₪',
-                      style: pw.TextStyle(
-                          fontSize: 13,
-                          fontWeight: pw.FontWeight.bold,
-                          color: primaryDarkBlue)),
+                  pw.Text(
+                    '₪',
+                    style: pw.TextStyle(
+                      fontSize: 13,
+                      fontWeight: pw.FontWeight.bold,
+                      color: primaryDarkBlue,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -213,8 +232,10 @@ Future<Uint8List> buildHebrewPocPdf({
                   top: 0,
                   right: 0,
                   bottom: 0,
-                  child: pw.Image(pw.MemoryImage(bgImageBytes),
-                      fit: pw.BoxFit.fill),
+                  child: pw.Image(
+                    pw.MemoryImage(bgImageBytes),
+                    fit: pw.BoxFit.fill,
+                  ),
                 ),
 
               // Overlay content
@@ -260,10 +281,31 @@ Future<Uint8List> buildHebrewPocPdf({
                             ),
                           ],
                         ),
-                        if (logoBytes != null)
-                          pw.Image(
-                            pw.MemoryImage(logoBytes),
-                            width: 180,
+                        if (logoSvg != null)
+                          pw.SizedBox(
+                            width: 72,
+                            height: 72,
+                            child: pw.SvgImage(svg: logoSvg),
+                          )
+                        else if (logoBytes != null)
+                          pw.Container(
+                            width: 72,
+                            height: 72,
+                            padding: const pw.EdgeInsets.all(8),
+                            decoration: pw.BoxDecoration(
+                              color: PdfColors.white,
+                              shape: pw.BoxShape.circle,
+                              border: pw.Border.all(
+                                color: accentCyan,
+                                width: 2,
+                              ),
+                            ),
+                            child: pw.ClipOval(
+                              child: pw.Image(
+                                pw.MemoryImage(logoBytes),
+                                fit: pw.BoxFit.contain,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -425,28 +467,28 @@ Future<Uint8List> buildHebrewPocPdf({
                       decoration: pw.BoxDecoration(
                         border: pw.Border(
                           bottom: pw.BorderSide(
-                              color: primaryDarkBlue, width: 0.8),
+                            color: primaryDarkBlue,
+                            width: 0.8,
+                          ),
                         ),
                       ),
                       child: pw.Row(
                         children: [
                           pw.Expanded(
                             flex: 5,
-                            child: headerCell('תיאור',
-                                alignment: pw.Alignment.centerRight),
+                            child: headerCell(
+                              'תיאור',
+                              alignment: pw.Alignment.centerRight,
+                            ),
                           ),
+                          pw.Expanded(flex: 2, child: headerCell('כמות')),
+                          pw.Expanded(flex: 2, child: headerCell('מחיר יחידה')),
                           pw.Expanded(
                             flex: 2,
-                            child: headerCell('כמות'),
-                          ),
-                          pw.Expanded(
-                            flex: 2,
-                            child: headerCell('מחיר יחידה'),
-                          ),
-                          pw.Expanded(
-                            flex: 2,
-                            child: headerCell('סה"כ',
-                                alignment: pw.Alignment.centerLeft),
+                            child: headerCell(
+                              'סה"כ',
+                              alignment: pw.Alignment.centerLeft,
+                            ),
                           ),
                         ],
                       ),
@@ -458,11 +500,13 @@ Future<Uint8List> buildHebrewPocPdf({
                     ...items.asMap().entries.map((entry) {
                       final index = entry.key;
                       final item = entry.value;
-                      final qty = double.tryParse(
-                              item['quantity']?.toString() ?? '1') ??
+                      final qty =
+                          double.tryParse(
+                            item['quantity']?.toString() ?? '1',
+                          ) ??
                           1.0;
-                      final price = double.tryParse(
-                              item['price']?.toString() ?? '0') ??
+                      final price =
+                          double.tryParse(item['price']?.toString() ?? '0') ??
                           0.0;
                       final itemTotal = qty * price;
                       final isLast = index == items.length - 1;
@@ -484,10 +528,11 @@ Future<Uint8List> buildHebrewPocPdf({
                     if (!vatExempt) ...[
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(
-                            vertical: 6, horizontal: 8),
+                          vertical: 6,
+                          horizontal: 8,
+                        ),
                         child: pw.Row(
-                          mainAxisAlignment:
-                              pw.MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text(
                               '₪${totalWithVat.toStringAsFixed(2)}',
@@ -499,10 +544,7 @@ Future<Uint8List> buildHebrewPocPdf({
                             ),
                             pw.Text(
                               'סיכום ביניים:   ₪${total.toStringAsFixed(2)}   |   מע"מ: ₪${vatAmount.toStringAsFixed(2)}',
-                              style: pw.TextStyle(
-                                fontSize: 8,
-                                color: bodyText,
-                              ),
+                              style: pw.TextStyle(fontSize: 8, color: bodyText),
                               textAlign: pw.TextAlign.right,
                             ),
                           ],
@@ -518,7 +560,9 @@ Future<Uint8List> buildHebrewPocPdf({
                     // ==========================================
                     pw.Container(
                       padding: const pw.EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 18),
+                        vertical: 14,
+                        horizontal: 18,
+                      ),
                       decoration: pw.BoxDecoration(
                         color: primaryDarkBlue,
                         borderRadius: const pw.BorderRadius.all(
@@ -526,8 +570,7 @@ Future<Uint8List> buildHebrewPocPdf({
                         ),
                       ),
                       child: pw.Row(
-                        mainAxisAlignment:
-                            pw.MainAxisAlignment.spaceBetween,
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -567,11 +610,14 @@ Future<Uint8List> buildHebrewPocPdf({
                                 ),
                               ),
                               pw.SizedBox(width: 2),
-                              pw.Text('₪',
-                                  style: pw.TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: pw.FontWeight.bold,
-                                      color: white)),
+                              pw.Text(
+                                '₪',
+                                style: pw.TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: pw.FontWeight.bold,
+                                  color: white,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -595,9 +641,12 @@ Future<Uint8List> buildHebrewPocPdf({
                                 pw.Container(
                                   decoration: pw.BoxDecoration(
                                     border: pw.Border.all(
-                                        color: primaryDarkBlue, width: 0.8),
+                                      color: primaryDarkBlue,
+                                      width: 0.8,
+                                    ),
                                     borderRadius: const pw.BorderRadius.all(
-                                        pw.Radius.circular(6)),
+                                      pw.Radius.circular(6),
+                                    ),
                                   ),
                                   padding: const pw.EdgeInsets.all(12),
                                   child: pw.Column(
@@ -605,8 +654,7 @@ Future<Uint8List> buildHebrewPocPdf({
                                         pw.CrossAxisAlignment.end,
                                     children: [
                                       pw.Align(
-                                        alignment:
-                                            pw.Alignment.centerRight,
+                                        alignment: pw.Alignment.centerRight,
                                         child: pw.Text(
                                           'הערות',
                                           style: pw.TextStyle(
@@ -621,8 +669,7 @@ Future<Uint8List> buildHebrewPocPdf({
                                       pw.SizedBox(height: 4),
                                       if (cleanNotes.isNotEmpty)
                                         pw.Align(
-                                          alignment:
-                                              pw.Alignment.centerRight,
+                                          alignment: pw.Alignment.centerRight,
                                           child: pw.Text(
                                             cleanNotes,
                                             style: pw.TextStyle(
@@ -637,8 +684,7 @@ Future<Uint8List> buildHebrewPocPdf({
                                         pw.SizedBox(height: 4),
                                       if (defaultTerms.isNotEmpty)
                                         pw.Align(
-                                          alignment:
-                                              pw.Alignment.centerRight,
+                                          alignment: pw.Alignment.centerRight,
                                           child: pw.Text(
                                             defaultTerms,
                                             style: pw.TextStyle(
@@ -677,9 +723,7 @@ Future<Uint8List> buildHebrewPocPdf({
                           child: pw.Column(
                             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                             children: [
-                              pw.Container(
-                                  height: 1.2,
-                                  color: primaryDarkBlue),
+                              pw.Container(height: 1.2, color: primaryDarkBlue),
                               pw.SizedBox(height: 6),
                               pw.Text(
                                 'חתימה',

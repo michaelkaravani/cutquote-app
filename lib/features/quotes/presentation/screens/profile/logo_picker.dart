@@ -21,10 +21,7 @@ class LogoPicker extends StatelessWidget {
       width: 64,
       height: 64,
       decoration: BoxDecoration(
-        color: Theme.of(context)
-            .colorScheme
-            .primary
-            .withValues(alpha: 0.1),
+        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(
@@ -42,15 +39,26 @@ class LogoPicker extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: logoPath != null
-              ? Image.file(
-                  File(logoPath!),
-                  width: 64,
-                  height: 64,
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) =>
-                          _defaultLogoPreview(context),
-                )
+              ? logoPath!.toLowerCase().endsWith('.svg')
+                    ? Container(
+                        width: 64,
+                        height: 64,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerLow,
+                        child: Icon(
+                          Icons.draw_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      )
+                    : Image.file(
+                        File(logoPath!),
+                        width: 64,
+                        height: 64,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            _defaultLogoPreview(context),
+                      )
               : _defaultLogoPreview(context),
         ),
         if (isEditing) ...[

@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:image/image.dart' as img;
 
 Map<String, dynamic> extractProfile(Map<String, dynamic>? profile) {
   return {
@@ -46,4 +49,33 @@ pw.Widget metaRow(String label, String value, PdfColor labelColor, PdfColor valu
       pw.Text(value, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: valueColor)),
     ],
   );
+}
+
+/// Processes a logo image to preserve PNG transparency in PDFs
+/// 
+/// Takes a file path to a PNG logo and re-encodes it to ensure
+/// the alpha channel is properly preserved when rendered in PDF format.
+/// 
+/// Returns processed image bytes, or null if processing fails.
+Future<Uint8List?> processLogoWithTransparency(String logoPath) async {
+  try {
+    final logoFile = File(logoPath);
+    final originalBytes = await logoFile.readAsBytes();
+    
+    // Decode the PNG image
+    final decodedImage = img.decodeImage(originalBytes);
+    
+    if (decodedImage == null) {
+      // Fallback: return original bytes if decoding fails
+      return originalBytes;
+    }
+    
+    // Re-encode as PNG with explicit alpha channel preservation
+    final processedBytes = img.encodePng(decodedImage);
+    
+    return Uint8List.fromList(processedBytes);
+  } catch (e) {
+    // Return null if any error occurs (template will handle missing logo gracefully)
+    return null;
+  }
 }
