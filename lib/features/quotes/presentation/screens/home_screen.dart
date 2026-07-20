@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/core/quote_status.dart';
 import 'package:cutquote/core/quote_actions.dart';
-import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cutquote/csv_export_service.dart';
-import 'package:cutquote/month_picker_dialog.dart';
 import 'home/dashboard_view.dart';
+import 'home/quote_loader.dart';
+import 'home/catalog_delete_dialog.dart';
+import 'home/catalog_manager.dart';
+import 'home/customer_manager.dart';
+import 'home/customer_delete_dialog.dart';
+import 'home/customer_filter_sheet.dart';
+import 'home/customer_pdf_exporter.dart';
+import 'home/revenue_exporter.dart';
+import 'home/status_picker.dart';
 import 'customers_screen.dart';
 import 'customers/quote_status_chip.dart';
 import 'quote_builder_screen.dart';
@@ -24,19 +30,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 2;
 
-  List<Map<String, String>> _globalCustomers = [];
-  List<Map<String, dynamic>> _globalCatalog = [];
-  List<Map<String, dynamic>> _globalQuotes = [];
+  final _customerManager = CustomerManager();
+  final _catalogManager = CatalogManager();
+  final _quoteLoader = QuoteLoader();
   bool _isLoading = true;
   String get _businessName => _profile?['businessName'] as String? ?? '';
   Map<String, dynamic>? _profile;
-
-  // Firestore cursor pagination for quote history.
-  static const int _quotesPerPage = 50;
-  DocumentSnapshot<Map<String, dynamic>>? _lastQuoteDocument;
-  bool _hasMoreQuotes = false;
-  bool _isLoadingMore = false;
-  bool _isLoadingAllQuotes = false;
 
   String? _selectedCustomerFilter;
   bool _showOnlyPending = false;
@@ -44,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _dashboardSearchController = TextEditingController();
 
   List<Map<String, dynamic>> get _filteredQuotes {
-    var result = _globalQuotes.toList()
+    var result = _quoteLoader.quotes.toList()
       ..sort((a, b) {
         final aDate = a['createdAt'] as Timestamp?;
         final bDate = b['createdAt'] as Timestamp?;
@@ -86,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   bool get _canLoadMore {
-    return _hasMoreQuotes &&
+    return _quoteLoader.hasMore &&
         _dashboardSearchQuery.trim().isEmpty &&
         !_showOnlyPending &&
         _selectedCustomerFilter == null;
@@ -113,37 +112,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadMoreQuotes() async {
-    if (_isLoadingMore || !_canLoadMore) return;
-
-    setState(() => _isLoadingMore = true);
-    try {
-      final page = await FirestoreService.loadQuotesPage(
-        _uid,
-        limit: _quotesPerPage,
-        startAfter: _lastQuoteDocument,
-      );
-      if (!mounted) return;
-
-      setState(() {
-        final existingIds = _globalQuotes
-            .map((quote) => quote['id']?.toString())
-            .whereType<String>()
-            .toSet();
-        _globalQuotes.addAll(
-          page.quotes.where(
-            (quote) => !existingIds.contains(quote['id']?.toString()),
-          ),
-        );
-        _lastQuoteDocument = page.lastDocument ?? _lastQuoteDocument;
-        _hasMoreQuotes = page.hasMore;
-        _isLoadingMore = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingMore = false);
+    final success = await _quoteLoader.loadMore(_uid);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בטעינת הצעות נוספות: $e'),
+        const SnackBar(
+          content: Text('שגיאה בטעינת הצעות נוספות'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -151,38 +126,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAllRemainingQuotes() async {
-    if (_isLoadingAllQuotes || !_hasMoreQuotes) return;
-
-    setState(() => _isLoadingAllQuotes = true);
-    try {
-      while (_hasMoreQuotes) {
-        final page = await FirestoreService.loadQuotesPage(
-          _uid,
-          limit: _quotesPerPage,
-          startAfter: _lastQuoteDocument,
-        );
-        if (!mounted) return;
-
-        final existingIds = _globalQuotes
-            .map((quote) => quote['id']?.toString())
-            .whereType<String>()
-            .toSet();
-        _globalQuotes.addAll(
-          page.quotes.where(
-            (quote) => !existingIds.contains(quote['id']?.toString()),
-          ),
-        );
-        _lastQuoteDocument = page.lastDocument ?? _lastQuoteDocument;
-        _hasMoreQuotes = page.hasMore;
-      }
-
-      if (!mounted) return;
-      setState(() => _isLoadingAllQuotes = false);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoadingAllQuotes = false);
-      rethrow;
-    }
+    await _quoteLoader.loadAllRemaining(_uid);
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _loadAllData() async {
@@ -191,21 +137,14 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final customers = await FirestoreService.loadCustomers(_uid);
       final catalog = await FirestoreService.loadCatalog(_uid);
-      final quotePage = await FirestoreService.loadQuotesPage(
-        _uid,
-        limit: _quotesPerPage,
-      );
+      await _quoteLoader.loadInitialPage(_uid);
       final profile = await FirestoreService.loadProfile(_uid);
 
       if (!mounted) return;
       setState(() {
-        _globalCustomers = customers;
-        _globalQuotes = quotePage.quotes;
-        _globalCatalog = catalog; // פשוט טוען את מה שיש, בלי מוצרי ברירת מחדל!
+        _customerManager.customers = customers;
+        _catalogManager.catalog = catalog;
         _profile = profile;
-        _lastQuoteDocument = quotePage.lastDocument;
-        _hasMoreQuotes = quotePage.hasMore;
-        _isLoadingMore = false;
         _isLoading = false;
       });
     } catch (e) {
@@ -223,21 +162,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _updateCustomer(Map<String, String> updatedCustomer) async {
-    final docId = updatedCustomer['id'];
-    if (docId == null) return;
-    try {
-      final data = Map<String, String>.from(updatedCustomer)..remove('id');
-      await FirestoreService.updateCustomer(_uid, docId, data);
-      if (!mounted) return;
-      setState(() {
-        final idx = _globalCustomers.indexWhere((c) => c['id'] == docId);
-        if (idx != -1) _globalCustomers[idx] = updatedCustomer;
-      });
-    } catch (e) {
-      if (!mounted) return;
+    final success = await _customerManager.updateCustomer(_uid, updatedCustomer);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בעדכון לקוח: $e'),
+        const SnackBar(
+          content: Text('שגיאה בעדכון לקוח'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -245,18 +176,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _addCustomer(Map<String, String> newCustomer) async {
-    try {
-      final id = await FirestoreService.addCustomer(_uid, newCustomer);
-      if (!mounted) return;
-      final withId = Map<String, String>.from(newCustomer)..['id'] = id;
-      setState(() {
-        _globalCustomers.add(withId);
-      });
-    } catch (e) {
-      if (!mounted) return;
+    final success = await _customerManager.addCustomer(_uid, newCustomer);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בהוספת לקוח: $e'),
+        const SnackBar(
+          content: Text('שגיאה בהוספת לקוח'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -264,126 +190,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteCustomer(int index) async {
-    final customer = _globalCustomers[index];
+    final customer = _customerManager.customers[index];
     final docId = customer['id'];
-    
-    // Check if customer has any quotes
-    final customerQuotes = _globalQuotes.where((quote) {
+
+    final customerQuotes = _quoteLoader.quotes.where((quote) {
       final qc = quote['customer'] as Map?;
       if (qc == null) return false;
       return qc['id'] == docId;
     }).toList();
-    
+
     if (customerQuotes.isNotEmpty) {
-      // Show warning dialog
       if (!mounted) return;
-      final shouldDelete = await showDialog<bool>(
+      final shouldProceed = await showDeleteCustomerWarningDialog(
         context: context,
-        builder: (context) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Row(
-              children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.orange,
-                  size: 28,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'אזהרה',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ללקוח "${customer['name']}" יש ${customerQuotes.length} הצעות מחיר פעילות.',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'מחיקת הלקוח לא תמחק את ההצעות, אך הן יישארו עם נתוני לקוח מנותקים.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline, color: Colors.orange, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'מומלץ למחוק תחילה את כל ההצעות של הלקוח',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.orange.shade900,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('ביטול'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('מחק בכל זאת'),
-              ),
-            ],
-          ),
-        ),
+        customerName: customer['name'] ?? '',
+        quoteCount: customerQuotes.length,
       );
-      
-      if (shouldDelete != true) return;
+      if (!shouldProceed) return;
     }
 
-    setState(() {
-      _globalCustomers.removeAt(index);
-    });
-
-    if (docId == null) return;
-    try {
-      await FirestoreService.deleteCustomer(_uid, docId);
-    } catch (e) {
-      if (!mounted) return;
-      // מחזירים את הלקוח לרשימה אם המחיקה בענן נכשלה
-      setState(() {
-        _globalCustomers.insert(index.clamp(0, _globalCustomers.length), customer);
-      });
+    final success = await _customerManager.deleteCustomer(_uid, index);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה במחיקת לקוח: $e'),
+        const SnackBar(
+          content: Text('שגיאה במחיקת לקוח'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -395,8 +227,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       quote: quote,
       profile: _profile,
-      customers: _globalCustomers,
-      catalog: _globalCatalog,
+      customers: _customerManager.customers,
+      catalog: _catalogManager.catalog,
       onAddToCatalog: _addCatalogItem,
       onSaveQuote: _saveQuote,
       onDeleteFromCatalog: _confirmDeleteCatalogItem,
@@ -419,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await QuoteActions.shareQuote(
       context: context,
       quote: quote,
-      allQuotes: _globalQuotes,
+      allQuotes: _quoteLoader.quotes,
       businessName: _businessName,
       uid: _uid,
       profile: _profile,
@@ -435,10 +267,10 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await FirestoreService.updateQuote(_uid, docId, dataToSave);
       if (!mounted) return;
-      final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
+      final index = _quoteLoader.quotes.indexWhere((q) => q['id'] == docId);
       if (index != -1) {
         setState(() {
-          _globalQuotes[index] = Map<String, dynamic>.from(updatedQuote);
+          _quoteLoader.quotes[index] = Map<String, dynamic>.from(updatedQuote);
         });
       }
       ScaffoldMessenger.of(context).showSnackBar(
@@ -458,45 +290,34 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _deleteQuote(Map<String, dynamic> quote) async {
     final docId = quote['id'] as String?;
-    final index = _globalQuotes.indexWhere((q) => q['id'] == docId);
+    final index = _quoteLoader.quotes.indexWhere((q) => q['id'] == docId);
     if (index == -1) return;
     await QuoteActions.deleteQuoteByIndex(
       context: context,
       uid: _uid,
-      allQuotes: _globalQuotes,
+      allQuotes: _quoteLoader.quotes,
       index: index,
       onRemoved: (idx) {
         setState(() {
-          _globalQuotes.removeAt(idx);
+          _quoteLoader.quotes.removeAt(idx);
         });
       },
       onRollback: (idx, q) {
         setState(() {
-          _globalQuotes.insert(idx, q);
+          _quoteLoader.quotes.insert(idx, q);
         });
       },
     );
   }
 
   Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
-    final exists = _globalCatalog.any(
-      (item) =>
-          (item['name'] ?? '').toString().trim() == (newItem['name'] ?? '').toString().trim(),
-    );
-    if (exists) return;
-
-    try {
-      final id = await FirestoreService.addCatalogItem(_uid, newItem);
-      if (!mounted) return;
-      final withId = Map<String, dynamic>.from(newItem)..['id'] = id;
-      setState(() {
-        _globalCatalog.add(withId);
-      });
-    } catch (e) {
-      if (!mounted) return;
+    final success = await _catalogManager.addItem(_uid, newItem);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בהוספת פריט לקטלוג: $e'),
+        const SnackBar(
+          content: Text('שגיאה בהוספת פריט לקטלוג'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -504,27 +325,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _updateCatalogItem(int index, Map<String, dynamic> updatedItem) async {
-    final original = _globalCatalog[index];
-    final docId = original['id'];
-    if (docId == null) return;
-
-    final data = Map<String, dynamic>.from(updatedItem);
-    data.remove('id');
-
-    setState(() {
-      _globalCatalog[index] = Map<String, dynamic>.from(updatedItem)..['id'] = docId;
-    });
-
-    try {
-      await FirestoreService.updateCatalogItem(_uid, docId, data);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _globalCatalog[index] = original;
-      });
+    final success = await _catalogManager.updateItem(index, _uid, updatedItem);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה בעדכון פריט: $e'),
+        const SnackBar(
+          content: Text('שגיאה בעדכון פריט'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -532,80 +339,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _confirmDeleteCatalogItem(int index) {
-    final itemName = _globalCatalog[index]['name'] ?? '';
-    showDialog(
+    final itemName = _catalogManager.catalog[index]['name'] ?? '';
+    showConfirmDeleteCatalogItemDialog(
       context: context,
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'מחיקת פריט מהקטלוג',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Text(
-              'האם אתה בטוח שברצונך למחוק את "$itemName" מהקטלוג?',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'ביטול',
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _deleteCatalogItem(index);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('מחיקה'),
-              ),
-            ],
-          ),
-        );
-      },
+      itemName: itemName,
+      onConfirm: () => _deleteCatalogItem(index),
     );
   }
 
   Future<void> _deleteCatalogItem(int index) async {
-    final item = _globalCatalog[index];
-    final docId = item['id'];
-
-    setState(() {
-      _globalCatalog.removeAt(index);
-    });
-
-    if (docId == null) return;
-    try {
-      await FirestoreService.deleteCatalogItem(_uid, docId);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _globalCatalog.insert(index, item);
-      });
+    final success = await _catalogManager.deleteItem(index, _uid);
+    if (!mounted) return;
+    setState(() {});
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('שגיאה במחיקת פריט מהקטלוג: $e'),
+        const SnackBar(
+          content: Text('שגיאה במחיקת פריט מהקטלוג'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -621,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ..['quoteNumber'] = result['quoteNumber']
         ..['createdAt'] = Timestamp.now();
       setState(() {
-        _globalQuotes.add(withId);
+        _quoteLoader.quotes.add(withId);
       });
     } catch (e) {
       if (!mounted) return;
@@ -652,54 +401,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showStatusPicker(BuildContext context, Map<String, dynamic> quote) {
-    final currentStatus = QuoteStatus.fromString(quote['status'] as String?);
-
-    showModalBottomSheet(
+    showStatusPicker(
       context: context,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'בחר סטטוס',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...QuoteStatus.values.map((status) {
-                  final isSelected = status == currentStatus;
-                  return ListTile(
-                    leading: Icon(
-                      Icons.circle,
-                      color: status.displayColor,
-                      size: 20,
-                    ),
-                    title: Text(status.label),
-                    trailing: isSelected
-                        ? Icon(Icons.check,
-                            color: Theme.of(context).colorScheme.primary)
-                        : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!isSelected) {
-                        _updateQuoteStatus(quote, status.dbValue);
-                      }
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
+      quote: quote,
+      onUpdateStatus: (statusDbValue) {
+        _updateQuoteStatus(quote, statusDbValue);
       },
     );
   }
@@ -712,16 +418,16 @@ class _HomeScreenState extends State<HomeScreen> {
         QuoteActions.deleteQuoteByIndex(
           context: context,
           uid: _uid,
-          allQuotes: _globalQuotes,
+          allQuotes: _quoteLoader.quotes,
           index: idx,
           onRemoved: (i) {
             setState(() {
-              _globalQuotes.removeAt(i);
+              _quoteLoader.quotes.removeAt(i);
             });
           },
           onRollback: (i, q) {
             setState(() {
-              _globalQuotes.insert(i, q);
+              _quoteLoader.quotes.insert(i, q);
             });
           },
         );
@@ -730,76 +436,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _consolidateCustomerQuotesAsPdf(Map<String, String> customer) async {
-    await _loadAllRemainingQuotes();
-    if (!mounted) return;
-
-    final customerQuotes = _globalQuotes
-        .where(
-          (quote) {
-            final qc = quote['customer'] as Map?;
-            if (qc == null) return false;
-            return qc['name'] == customer['name'] &&
-                qc['phone'] == customer['phone'];
-          },
-        )
-        .toList();
-
-    if (customerQuotes.isEmpty) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('לא נמצאו הצעות מחיר שמורות עבור לקוח זה'),
-        ),
-      );
-      return;
-    }
-
-    final Map<String, Map<String, dynamic>> consolidatedItems = {};
-
-    for (var quote in customerQuotes) {
-      final List<Map<String, dynamic>> items = List<Map<String, dynamic>>.from(
-        quote['items'] ?? [],
-      );
-      for (var item in items) {
-        final String name = (item['name'] as String?) ?? '';
-        final int quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-        final double price = (item['price'] as num?)?.toDouble() ?? 0.0;
-
-        if (consolidatedItems.containsKey(name)) {
-          final existing = consolidatedItems[name]!;
-          existing['quantity'] = ((existing['quantity'] as num?)?.toInt() ?? 0) + quantity;
-        } else {
-          consolidatedItems[name] = {
-            'name': name,
-            'quantity': quantity,
-            'price': price,
-          };
-        }
-      }
-    }
-
-    final List<Map<String, dynamic>> finalItems = consolidatedItems.values
-        .toList();
-
-    double finalTotal = 0;
-    for (var item in finalItems) {
-      finalTotal += ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 0);
-    }
-
-    final freshProfile = await FirestoreService.loadProfile(_uid);
-    if (!mounted) return;
-    final profile = freshProfile ?? _profile;
-
-    await PdfService.generateAndShareQuote(
+    await consolidateCustomerQuotesAsPdf(
+      context: context,
       customer: customer,
-      items: finalItems,
-      total: finalTotal,
-      filename: 'quote_${customer['name'] ?? 'general'}.pdf',
-      notes: null,
-      profile: profile,
-      templateStyle: pdfTemplateNotifier.currentTemplate,
+      allQuotes: _quoteLoader.quotes,
+      onEnsureAllQuotesLoaded: _loadAllRemainingQuotes,
+      onLoadProfile: () => FirestoreService.loadProfile(_uid),
+      pdfTemplateNotifier: pdfTemplateNotifier,
     );
   }
 
@@ -818,125 +461,33 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (!mounted) return;
 
-    final uniqueCustomers = <Map<String, String>>[];
-    final seen = <String>{};
-    for (final q in _globalQuotes) {
-      final c = q['customer'] as Map?;
-      if (c == null) continue;
-      final name = c['name']?.toString() ?? '';
-      if (name.trim().isEmpty) continue;
-      final phone = c['phone']?.toString() ?? '';
-      final key = '$name|$phone';
-      if (seen.add(key)) {
-        uniqueCustomers.add({'name': name, 'phone': phone, 'key': key});
-      }
-    }
-    uniqueCustomers.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
-
-    showModalBottomSheet(
+    final result = await showCustomerFilterSheet(
       context: context,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'בחר לקוח לסינון',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: uniqueCustomers.length,
-                  itemBuilder: (context, i) {
-                    final entry = uniqueCustomers[i];
-                    final displayName = (entry['phone'] ?? '').isNotEmpty
-                        ? '${entry['name'] ?? ''} (${entry['phone'] ?? ''})'
-                        : entry['name'] ?? '';
-                    return ListTile(
-                      key: ValueKey(entry['key'] ?? i),
-                      title: Text(displayName),
-                      trailing: _selectedCustomerFilter == entry['key']
-                          ? Icon(Icons.check,
-                              color: Theme.of(context).colorScheme.primary)
-                          : null,
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        setState(() {
-                          _selectedCustomerFilter = entry['key'];
-                          _showOnlyPending = false;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      quotes: _quoteLoader.quotes,
+      selectedCustomerFilter: _selectedCustomerFilter,
     );
+
+    if (result != null && mounted) {
+      setState(() {
+        _selectedCustomerFilter = result['key'];
+        _showOnlyPending = false;
+      });
+    }
   }
 
   Future<void> _exportMonthlyRevenue() async {
-    final result = await showMonthPickerDialog(context);
-    if (result == null || !mounted) return;
-
-    showDialog(
+    await exportMonthlyRevenue(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => Center(
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: CircularProgressIndicator(
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-          ),
-        ),
-      ),
+      onEnsureAllQuotesLoaded: _loadAllRemainingQuotes,
+      allQuotes: _quoteLoader.quotes,
+      defaultVatRate: (_profile?['vatRate'] as num?)?.toDouble() ?? 0.18,
+      vatExempt: _profile?['vatExempt'] == true,
     );
-
-    try {
-      await _loadAllRemainingQuotes();
-      if (!mounted) return;
-
-      final vatRate = (_profile?['vatRate'] as num?)?.toDouble() ?? 0.18;
-      final vatExempt = _profile?['vatExempt'] == true;
-      await CsvExportService.exportMonthlyRevenue(
-        allQuotes: _globalQuotes,
-        year: result.year,
-        month: result.month,
-        vatRate: vatRate,
-        vatExempt: vatExempt,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString()),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    }
   }
 
   Widget _buildDashboardView() {
     return DashboardView(
-      quotes: _globalQuotes,
+      quotes: _quoteLoader.quotes,
       filteredQuotes: _filteredQuotes,
       businessName: _businessName,
       selectedCustomerFilter: _selectedCustomerFilter,
@@ -978,10 +529,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onConfirmDeleteQuote: _confirmDeleteQuote,
       dashboardSearchController: _dashboardSearchController,
       canLoadMore: _canLoadMore,
-      isLoadingMore: _isLoadingMore,
+      isLoadingMore: _quoteLoader.isLoadingMore,
       onLoadMore: _loadMoreQuotes,
       totalFilteredCount: _filteredQuotes.length,
-      hasUnloadedQuotes: _hasMoreQuotes,
+      hasUnloadedQuotes: _quoteLoader.hasMore,
     );
   }
 
@@ -1001,8 +552,8 @@ class _HomeScreenState extends State<HomeScreen> {
       CustomersScreen(
         businessName: _businessName,
         profile: _profile,
-        customers: _globalCustomers,
-        quotes: _globalQuotes,
+        customers: _customerManager.customers,
+        quotes: _quoteLoader.quotes,
         onCustomerAdded: _addCustomer,
         onCustomerDeleted: _deleteCustomer,
         onCustomerUpdated: _updateCustomer,
@@ -1016,9 +567,9 @@ class _HomeScreenState extends State<HomeScreen> {
             await FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
             if (!mounted) return;
             setState(() {
-              final idx = _globalQuotes.indexWhere((q) => q['id'] == quoteId);
+              final idx = _quoteLoader.quotes.indexWhere((q) => q['id'] == quoteId);
               if (idx != -1) {
-                _globalQuotes[idx]['status'] = newStatus;
+                _quoteLoader.quotes[idx]['status'] = newStatus;
               }
             });
           } catch (e) {
@@ -1034,8 +585,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       QuoteBuilderScreen(
         profile: _profile,
-        customers: _globalCustomers,
-        catalog: _globalCatalog,
+        customers: _customerManager.customers,
+        catalog: _catalogManager.catalog,
         onAddToCatalog: _addCatalogItem,
         onSaveQuote: _saveQuote,
         onDeleteFromCatalog: _confirmDeleteCatalogItem,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cutquote/core/quote_status.dart';
+import '../home/status_picker.dart';
 
 class QuoteStatusChip extends StatefulWidget {
   final Map<String, dynamic> quote;
@@ -38,63 +39,14 @@ class QuoteStatusChip extends StatefulWidget {
 
 class _QuoteStatusChipState extends State<QuoteStatusChip> {
   void _showStatusPicker() {
-    final currentStatus =
-        QuoteStatus.fromString(widget.quote['status'] as String?);
-
-    showModalBottomSheet(
+    showStatusPicker(
       context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'בחר סטטוס',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...QuoteStatus.values.map((status) {
-                  final isSelected = status == currentStatus;
-                  return ListTile(
-                    leading: Icon(
-                      Icons.circle,
-                      color: status.displayColor,
-                      size: 20,
-                    ),
-                    title: Text(status.label),
-                    trailing: isSelected
-                        ? Icon(
-                            Icons.check,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (!isSelected) {
-                        final docId = widget.quote['id'] as String?;
-                        if (docId != null) {
-                          widget.onUpdateQuoteStatus
-                              ?.call(docId, status.dbValue);
-                        }
-                      }
-                    },
-                  );
-                }),
-              ],
-            ),
-          ),
-        );
+      quote: widget.quote,
+      onUpdateStatus: (dbValue) {
+        final docId = widget.quote['id'] as String?;
+        if (docId != null) {
+          widget.onUpdateQuoteStatus?.call(docId, dbValue);
+        }
       },
     );
   }
