@@ -6,6 +6,10 @@ import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/add_item_dialog.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/customer_picker_sheet.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/quote_summary_card.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/edit_discount_dialog.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/edit_catalog_item_dialog.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/item_list.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/catalog_management_list.dart';
 
 class QuoteBuilderScreen extends StatefulWidget {
   final Map<String, dynamic>? profile;
@@ -80,60 +84,11 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   }
 
   void _editDiscount(BuildContext context) {
-    showDialog(
+    showEditDiscountDialog(
       context: context,
-      builder: (context) {
-        final controller = TextEditingController(text: _discount.toStringAsFixed(0));
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'הנחה',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'סכום ההנחה בשקלים',
-                prefixIcon: const Icon(Icons.money_off, size: 20),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  controller.dispose();
-                  Navigator.pop(context);
-                },
-                child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final value = double.tryParse(controller.text);
-                  final itemsTotal = calculateTotal() + _discount;
-                  if (value != null && value >= 0 && value <= itemsTotal) {
-                    setState(() => _discount = value);
-                    controller.dispose();
-                    Navigator.pop(context);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('אישור'),
-              ),
-            ],
-          ),
-        );
-      },
+      currentDiscount: _discount,
+      itemsTotal: calculateTotal() + _discount,
+      onDiscountSet: (value) => setState(() => _discount = value),
     );
   }
 
@@ -361,58 +316,9 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               const SizedBox(height: 10),
 
               if (items.isNotEmpty)
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final double itemTotal = ((item['price'] as num?)?.toDouble() ?? 0) * ((item['quantity'] as num?)?.toDouble() ?? 0);
-                    return Card(
-                      key: ValueKey(item['name'] ?? index),
-                      surfaceTintColor: Colors.transparent,
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        title: Text(
-                          item['name'] ?? '',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '${(item['quantity'] as num?)?.toInt() ?? 0} יח\' X ₪${((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.6),
-                          ),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '₪${itemTotal.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontSize: 15,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.redAccent,
-                              ),
-                              onPressed: () =>
-                                  setState(() => items.removeAt(index)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                ItemList(
+                  items: items,
+                  onDeleteItem: (index) => setState(() => items.removeAt(index)),
                 ),
               const SizedBox(height: 20),
 
@@ -547,73 +453,16 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                   ),
                 ),
 
-              // הצגת ניהול המועדפים ישירות בתחתית המסך כדי שיהיה קל למחוק פריטים ישנים מהקטלוג
-              if (widget.catalog.isNotEmpty) ...[
-                const SizedBox(height: 30),
-                Text(
-                  'ניהול פריטים שמורים (מועדפים)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: widget.catalog.length,
-                  itemBuilder: (context, index) {
-                    final catItem = widget.catalog[index];
-                    return Card(
-                      key: ValueKey(catItem['name'] ?? index),
-                      surfaceTintColor: Colors.transparent,
-                      margin: const EdgeInsets.symmetric(vertical: 3),
-                      child: ListTile(
-                        dense: true,
-                        title: Text(
-                          catItem['name'] ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text("₪${(catItem['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}"),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                Icons.edit_outlined,
-                                size: 18,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary,
-                              ),
-                              onPressed: () => _editCatalogItem(index, catItem),
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.delete_outline,
-                                size: 18,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurface
-                                    .withValues(alpha: 0.4),
-                              ),
-                              onPressed: () {
-                                if (widget.onDeleteFromCatalog != null) {
-                                  widget.onDeleteFromCatalog!(index);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+              if (widget.catalog.isNotEmpty)
+                CatalogManagementList(
+                  catalog: widget.catalog,
+                  onEditItem: _editCatalogItem,
+                  onDeleteItem: (index) {
+                    if (widget.onDeleteFromCatalog != null) {
+                      widget.onDeleteFromCatalog!(index);
+                    }
                   },
                 ),
-              ],
             ],
           ),
         ),
@@ -622,90 +471,10 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
   }
 
   void _editCatalogItem(int index, Map<String, dynamic> item) {
-    final nameController = TextEditingController(text: item['name']?.toString() ?? '');
-    final priceController = TextEditingController(
-      text: ((item['price'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
-    );
-
-    showDialog(
+    showEditCatalogItemDialog(
       context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(
-            'עריכת פריט',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: 'שם הפריט / השירות',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'מחיר ליחידה',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                nameController.dispose();
-                priceController.dispose();
-                Navigator.pop(ctx);
-              },
-              child: Text(
-                'ביטול',
-                style: TextStyle(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final price = double.tryParse(priceController.text.trim());
-                if (name.isEmpty || price == null || price < 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('מחיר לא תקין'),
-                      backgroundColor: Colors.redAccent,
-                    ),
-                  );
-                  return;
-                }
-                widget.onEditCatalogItem!(index, {'name': name, 'price': price});
-                nameController.dispose();
-                priceController.dispose();
-                Navigator.pop(ctx);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.secondary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('שמירה'),
-            ),
-          ],
-        ),
-      ),
+      item: item,
+      onSave: (updated) => widget.onEditCatalogItem!(index, updated),
     );
   }
 
