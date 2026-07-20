@@ -4,7 +4,9 @@ import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/add_item_dialog.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/add_item_button.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/customer_picker_sheet.dart';
+import 'package:cutquote/features/quotes/presentation/screens/quote_builder/customer_picker_tile.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/quote_summary_card.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/edit_discount_dialog.dart';
 import 'package:cutquote/features/quotes/presentation/screens/quote_builder/edit_catalog_item_dialog.dart';
@@ -92,6 +94,60 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
     );
   }
 
+  Future<void> _handleSave() async {
+    final DateTime now = DateTime.now();
+    final String formattedDate = "${now.day}/${now.month}/${now.year}";
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    setState(() => _isSaving = true);
+
+    if (widget.initialQuote != null && widget.onUpdateQuote != null) {
+      try {
+        await widget.onUpdateQuote!({
+          'customer': selectedCustomer,
+          'items': List<Map<String, dynamic>>.from(items),
+          'total': calculateTotal(),
+          'date': widget.initialQuote!['date'] ?? formattedDate,
+          'title': titleController.text.trim(),
+          'notes': notesController.text.trim(),
+          'id': widget.initialQuote!['id'],
+          'discount': _discount,
+        });
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('הצעת המחיר עודכנה בהצלחה!')),
+        );
+        navigator.pop();
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _isSaving = false);
+      }
+    } else {
+      await widget.onSaveQuote({
+        'customer': selectedCustomer,
+        'items': List<Map<String, dynamic>>.from(items),
+        'total': calculateTotal(),
+        'date': formattedDate,
+        'title': titleController.text.trim(),
+        'notes': notesController.text.trim(),
+        'discount': _discount,
+      });
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('הצעת המחיר נשמרה בהיסטוריה בהצלחה!')),
+      );
+      setState(() {
+        _isSaving = false;
+        _discount = 0.0;
+        items.clear();
+        selectedCustomer = null;
+        titleController.clear();
+        notesController.clear();
+      });
+    }
+  }
+
   void openAddItemDialog() {
     showDialog(
       context: context,
@@ -172,91 +228,11 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Text(
-                'לקוח',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
+              CustomerPickerTile(
+                customers: widget.customers,
+                selectedCustomer: selectedCustomer,
+                onTap: () => _showCustomerPicker(context),
               ),
-              const SizedBox(height: 6),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Theme.of(context).dividerColor),
-                ),
-                child: widget.customers.isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Theme.of(context).colorScheme.secondary),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'יש להוסיף תחילה לקוחות במסך "לקוחות".',
-                                style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
-                                      .withValues(alpha: 0.6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : InkWell(
-                        onTap: () {
-                          _showCustomerPicker(context);
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                selectedCustomer?['name'] ?? '-- בחר לקוח --',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Icon(
-                                Icons.keyboard_arrow_down,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-              ),
-              if (selectedCustomer != null) ...[
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  child: Text(
-                    'ח.פ: ${selectedCustomer!['hp'] ?? '—'} | כתובת: ${selectedCustomer!['address'] ?? '—'}',
-                    style: TextStyle(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(height: 20),
 
               Row(
@@ -281,38 +257,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
                 ],
               ),
               const SizedBox(height: 6),
-
-              InkWell(
-                onTap: openAddItemDialog,
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: double.infinity,
-                  height: 55,
-                  decoration: BoxDecoration(
-                    color: Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.6),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.add, color: Theme.of(context).colorScheme.secondary, size: 20),
-                      const SizedBox(width: 6),
-                      Text(
-                        'הוסף שירות / פריט',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              AddItemButton(onPressed: openAddItemDialog),
               const SizedBox(height: 10),
 
               if (items.isNotEmpty)
@@ -331,71 +276,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
               const SizedBox(height: 24),
 
               ElevatedButton(
-                onPressed: items.isEmpty || _isSaving
-                    ? null
-                    : () async {
-                        final DateTime now = DateTime.now();
-                        final String formattedDate =
-                            "${now.day}/${now.month}/${now.year}";
-                        final messenger = ScaffoldMessenger.of(context);
-                        final navigator = Navigator.of(context);
-
-                        setState(() => _isSaving = true);
-
-                        if (widget.initialQuote != null &&
-                            widget.onUpdateQuote != null) {
-                          try {
-                            await widget.onUpdateQuote!({
-                              'customer': selectedCustomer,
-                              'items': List<Map<String, dynamic>>.from(items),
-                              'total': calculateTotal(),
-                              'date': widget.initialQuote!['date'] ?? formattedDate,
-                              'title': titleController.text.trim(),
-                              'notes': notesController.text.trim(),
-                              'id': widget.initialQuote!['id'],
-                              'discount': _discount,
-                            });
-                            if (!mounted) return;
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'הצעת המחיר עודכנה בהצלחה!',
-                                ),
-                              ),
-                            );
-                            navigator.pop();
-                          } catch (_) {
-                            if (!mounted) return;
-                            setState(() => _isSaving = false);
-                          }
-                        } else {
-                          await widget.onSaveQuote({
-                            'customer': selectedCustomer,
-                            'items': List<Map<String, dynamic>>.from(items),
-                            'total': calculateTotal(),
-                            'date': formattedDate,
-                            'title': titleController.text.trim(),
-                            'notes': notesController.text.trim(),
-                            'discount': _discount,
-                          });
-                          if (!mounted) return;
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'הצעת המחיר נשמרה בהיסטוריה בהצלחה!',
-                              ),
-                            ),
-                          );
-                          setState(() {
-                            _isSaving = false;
-                            _discount = 0.0;
-                            items.clear();
-                            selectedCustomer = null;
-                            titleController.clear();
-                            notesController.clear();
-                          });
-                        }
-                      },
+                onPressed: items.isEmpty || _isSaving ? null : _handleSave,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
                   backgroundColor: Theme.of(context).colorScheme.primary,
@@ -426,25 +307,7 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
 
               if (items.isNotEmpty)
                 TextButton.icon(
-                  onPressed: () async {
-                    final uid = FirebaseAuth.instance.currentUser?.uid;
-                    if (uid == null) return;
-                    final freshProfile =
-                        await FirestoreService.loadProfile(uid);
-                    if (!mounted) return;
-                    final profile = freshProfile ?? widget.profile;
-
-                    await PdfService.generateAndShareQuote(
-                      customer: selectedCustomer,
-                      items: items,
-                      total: calculateTotal(),
-                      filename:
-                          'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
-                      notes: notesController.text.trim(),
-                      profile: profile,
-                      templateStyle: pdfTemplateNotifier.currentTemplate,
-                    );
-                  },
+                  onPressed: _handleSharePdf,
                   icon: const Icon(Icons.share, size: 18),
                   label: const Text('שתף כ-PDF'),
                   style: TextButton.styleFrom(
@@ -475,6 +338,24 @@ class _QuoteBuilderScreenState extends State<QuoteBuilderScreen> {
       context: context,
       item: item,
       onSave: (updated) => widget.onEditCatalogItem!(index, updated),
+    );
+  }
+
+  Future<void> _handleSharePdf() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final freshProfile = await FirestoreService.loadProfile(uid);
+    if (!mounted) return;
+    final profile = freshProfile ?? widget.profile;
+
+    await PdfService.generateAndShareQuote(
+      customer: selectedCustomer,
+      items: items,
+      total: calculateTotal(),
+      filename: 'quote_${selectedCustomer?['name'] ?? 'general'}.pdf',
+      notes: notesController.text.trim(),
+      profile: profile,
+      templateStyle: pdfTemplateNotifier.currentTemplate,
     );
   }
 

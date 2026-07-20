@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cutquote/core/firestore_service.dart';
-import 'package:cutquote/core/quote_status.dart';
 import 'package:cutquote/core/quote_actions.dart';
 import 'package:cutquote/core/pdf_template_notifier.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'home/dashboard_view.dart';
+import 'home/quote_filter.dart';
 import 'home/quote_loader.dart';
+import 'home/app_bottom_nav.dart';
 import 'home/catalog_delete_dialog.dart';
 import 'home/catalog_manager.dart';
 import 'home/customer_manager.dart';
@@ -28,7 +29,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 2;
+  int _selectedIndex = 0;
 
   final _customerManager = CustomerManager();
   final _catalogManager = CatalogManager();
@@ -42,54 +43,19 @@ class _HomeScreenState extends State<HomeScreen> {
   String _dashboardSearchQuery = '';
   final _dashboardSearchController = TextEditingController();
 
-  List<Map<String, dynamic>> get _filteredQuotes {
-    var result = _quoteLoader.quotes.toList()
-      ..sort((a, b) {
-        final aDate = a['createdAt'] as Timestamp?;
-        final bDate = b['createdAt'] as Timestamp?;
-        if (aDate != null && bDate != null) return bDate.compareTo(aDate);
-        return 0;
-      });
+  List<Map<String, dynamic>> get _filteredQuotes => QuoteFilter.apply(
+    quotes: _quoteLoader.quotes,
+    showOnlyPending: _showOnlyPending,
+    selectedCustomerFilter: _selectedCustomerFilter,
+    searchQuery: _dashboardSearchQuery,
+  );
 
-    if (_showOnlyPending) {
-      result = result
-          .where((q) => (q['status'] as String?) != QuoteStatus.paid.dbValue)
-          .toList();
-    }
-
-    if (_selectedCustomerFilter != null) {
-      result = result
-          .where(
-            (q) {
-              final c = q['customer'] as Map?;
-              if (c == null) return false;
-              final name = c['name']?.toString() ?? '';
-              final phone = c['phone']?.toString() ?? '';
-              return '$name|$phone' == _selectedCustomerFilter;
-            },
-          )
-          .toList();
-    }
-
-    if (_dashboardSearchQuery.isNotEmpty) {
-      final query = _dashboardSearchQuery.trim().toLowerCase();
-      result = result.where((q) {
-        final title = (q['title']?.toString() ?? '').toLowerCase();
-        final c = q['customer'] as Map?;
-        final customerName = (c?['name']?.toString() ?? '').toLowerCase();
-        return title.contains(query) || customerName.contains(query);
-      }).toList();
-    }
-
-    return result;
-  }
-
-  bool get _canLoadMore {
-    return _quoteLoader.hasMore &&
-        _dashboardSearchQuery.trim().isEmpty &&
-        !_showOnlyPending &&
-        _selectedCustomerFilter == null;
-  }
+  bool get _canLoadMore => QuoteFilter.canLoadMore(
+    hasMore: _quoteLoader.hasMore,
+    searchQuery: _dashboardSearchQuery,
+    showOnlyPending: _showOnlyPending,
+    selectedCustomerFilter: _selectedCustomerFilter,
+  );
 
   // מזהה המשתמש המחובר - כל הנתונים מבודדים תחת ה-uid הזה ב-Firestore
   String get _uid => FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -109,6 +75,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _dashboardSearchController.dispose();
     super.dispose();
+  }
+
+  Future<bool> _runOperation(Future<bool> Function() operation, String errorMessage) async {
+    final success = await operation();
+    if (!mounted) return false;
+    setState(() {});
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.redAccent),
+      );
+    }
+    return success;
   }
 
   Future<void> _loadMoreQuotes() async {
@@ -161,32 +139,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _updateCustomer(Map<String, String> updatedCustomer) async {
-    final success = await _customerManager.updateCustomer(_uid, updatedCustomer);
-    if (!mounted) return;
-    setState(() {});
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('שגיאה בעדכון לקוח'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+  void _updateCustomer(Map<String, String> updatedCustomer) {
+    _runOperation(
+      () => _customerManager.updateCustomer(_uid, updatedCustomer),
+      'שגיאה בעדכון לקוח',
+    );
   }
 
   Future<void> _addCustomer(Map<String, String> newCustomer) async {
-    final success = await _customerManager.addCustomer(_uid, newCustomer);
-    if (!mounted) return;
-    setState(() {});
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('שגיאה בהוספת לקוח'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    await _runOperation(
+      () => _customerManager.addCustomer(_uid, newCustomer),
+      'שגיאה בהוספת לקוח',
+    );
   }
 
   Future<void> _deleteCustomer(int index) async {
@@ -311,31 +275,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _addCatalogItem(Map<String, dynamic> newItem) async {
-    final success = await _catalogManager.addItem(_uid, newItem);
-    if (!mounted) return;
-    setState(() {});
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('שגיאה בהוספת פריט לקטלוג'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    await _runOperation(
+      () => _catalogManager.addItem(_uid, newItem),
+      'שגיאה בהוספת פריט לקטלוג',
+    );
   }
 
   Future<void> _updateCatalogItem(int index, Map<String, dynamic> updatedItem) async {
-    final success = await _catalogManager.updateItem(index, _uid, updatedItem);
-    if (!mounted) return;
-    setState(() {});
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('שגיאה בעדכון פריט'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    await _runOperation(
+      () => _catalogManager.updateItem(index, _uid, updatedItem),
+      'שגיאה בעדכון פריט',
+    );
   }
 
   void _confirmDeleteCatalogItem(int index) {
@@ -348,17 +298,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _deleteCatalogItem(int index) async {
-    final success = await _catalogManager.deleteItem(index, _uid);
-    if (!mounted) return;
-    setState(() {});
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('שגיאה במחיקת פריט מהקטלוג'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
+    await _runOperation(
+      () => _catalogManager.deleteItem(index, _uid),
+      'שגיאה במחיקת פריט מהקטלוג',
+    );
   }
 
   Future<void> _saveQuote(Map<String, dynamic> newQuote) async {
@@ -485,6 +428,46 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _handleProfileTap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+    ).then((_) {
+      if (FirebaseAuth.instance.currentUser != null) {
+        _loadAllData();
+      }
+    });
+  }
+
+  Widget _buildCustomersTab() {
+    return CustomersScreen(
+      businessName: _businessName,
+      profile: _profile,
+      customers: _customerManager.customers,
+      quotes: _quoteLoader.quotes,
+      onCustomerAdded: _addCustomer,
+      onCustomerDeleted: _deleteCustomer,
+      onCustomerUpdated: _updateCustomer,
+      onGenerateSummary: _consolidateCustomerQuotesAsPdf,
+      onEditQuote: _editQuote,
+      onShareQuote: _shareQuote,
+      onDeleteQuote: _deleteQuote,
+      onUpdateQuoteStatus: _handleUpdateQuoteStatus,
+    );
+  }
+
+  Widget _buildQuoteBuilderTab() {
+    return QuoteBuilderScreen(
+      profile: _profile,
+      customers: _customerManager.customers,
+      catalog: _catalogManager.catalog,
+      onAddToCatalog: _addCatalogItem,
+      onSaveQuote: _saveQuote,
+      onDeleteFromCatalog: _confirmDeleteCatalogItem,
+      onEditCatalogItem: _updateCatalogItem,
+    );
+  }
+
   Widget _buildDashboardView() {
     return DashboardView(
       quotes: _quoteLoader.quotes,
@@ -494,18 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
       showOnlyPending: _showOnlyPending,
       onShowCustomerFilter: _showCustomerFilterSheet,
       onExportMonthlyRevenue: _exportMonthlyRevenue,
-      onProfileTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ProfileScreen(),
-          ),
-        ).then((_) {
-          if (FirebaseAuth.instance.currentUser != null) {
-            _loadAllData();
-          }
-        });
-      },
+      onProfileTap: _handleProfileTap,
       onClearFilter: () => setState(() {
         _selectedCustomerFilter = null;
         _showOnlyPending = false;
@@ -536,6 +508,28 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _handleUpdateQuoteStatus(String quoteId, String newStatus) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
+      if (!mounted) return;
+      setState(() {
+        final idx = _quoteLoader.quotes.indexWhere((q) => q['id'] == quoteId);
+        if (idx != -1) {
+          _quoteLoader.quotes[idx]['status'] = newStatus;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('שגיאה בעדכון סטטוס: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -549,76 +543,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final List<Widget> screens = [
-      CustomersScreen(
-        businessName: _businessName,
-        profile: _profile,
-        customers: _customerManager.customers,
-        quotes: _quoteLoader.quotes,
-        onCustomerAdded: _addCustomer,
-        onCustomerDeleted: _deleteCustomer,
-        onCustomerUpdated: _updateCustomer,
-        onGenerateSummary: _consolidateCustomerQuotesAsPdf,
-        onEditQuote: _editQuote,
-        onShareQuote: _shareQuote,
-        onDeleteQuote: _deleteQuote,
-        onUpdateQuoteStatus: (quoteId, newStatus) async {
-          final messenger = ScaffoldMessenger.of(context);
-          try {
-            await FirestoreService.updateQuote(_uid, quoteId, {'status': newStatus});
-            if (!mounted) return;
-            setState(() {
-              final idx = _quoteLoader.quotes.indexWhere((q) => q['id'] == quoteId);
-              if (idx != -1) {
-                _quoteLoader.quotes[idx]['status'] = newStatus;
-              }
-            });
-          } catch (e) {
-            if (!mounted) return;
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text('שגיאה בעדכון סטטוס: $e'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
-          }
-        },
-      ),
-      QuoteBuilderScreen(
-        profile: _profile,
-        customers: _customerManager.customers,
-        catalog: _catalogManager.catalog,
-        onAddToCatalog: _addCatalogItem,
-        onSaveQuote: _saveQuote,
-        onDeleteFromCatalog: _confirmDeleteCatalogItem,
-        onEditCatalogItem: _updateCatalogItem,
-      ),
       _buildDashboardView(),
+      _buildQuoteBuilderTab(),
+      _buildCustomersTab(),
     ];
 
-    // כאן נפתרת שגיאת הליקולזציה: ה-Scaffold מוחזר ישירות, וה-Directionality עוטף אך ורק את ה-body הפנימי!
     return Scaffold(
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: screens[_selectedIndex],
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: AppBottomNav(
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'לקוחות'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.description),
-            label: 'הצעת מחיר',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'ראשי',
-          ),
-        ],
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }

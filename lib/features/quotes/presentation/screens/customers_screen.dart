@@ -1,16 +1,11 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cutquote/core/pdf_service.dart';
 import 'package:cutquote/core/pdf_template_notifier.dart';
-import 'package:cutquote/core/firestore_service.dart';
 import 'package:cutquote/features/quotes/presentation/screens/customers/customer_expansion_card.dart';
 import 'package:cutquote/features/quotes/presentation/screens/customers/add_customer_dialog.dart';
+import 'package:cutquote/features/quotes/presentation/screens/customers/delete_confirm_dialogs.dart';
+import 'package:cutquote/features/quotes/presentation/screens/customers/share_selected_quotes.dart';
+import 'package:cutquote/features/quotes/presentation/screens/customers/customer_search_bar.dart';
 
 class CustomersScreen extends StatefulWidget {
   final String businessName;
@@ -85,115 +80,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
   final Set<String> _selectedQuoteIds = {};
   bool _isSelectionMode = false;
   bool _isSharingMultiple = false;
-  int _sharingProgress = 0;
 
   void _confirmDeleteCustomer(int index, String customerName) {
-    showDialog(
+    showDeleteCustomerDialog(
       context: context,
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'מחיקת לקוח',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Text(
-              'האם אתה בטוח שברצונך למחוק את "$customerName"? הפעולה אינה הפיכה.',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'ביטול',
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onCustomerDeleted(index);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('מחיקה'),
-              ),
-            ],
-          ),
-        );
-      },
+      customerName: customerName,
+      onConfirm: () => widget.onCustomerDeleted(index),
     );
   }
 
   void _confirmDeleteQuote(Map<String, dynamic> quote) {
-    showDialog(
+    showDeleteQuoteDialog(
       context: context,
-      builder: (context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Text(
-              'מחיקת הצעה',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            content: Text(
-              'האם אתה בטוח שברצונך למחוק הצעה זו מתאריך ${quote['date'] ?? '—'}?',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(
-                  'ביטול',
-                  style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6),
-                  ),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  widget.onDeleteQuote(quote);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('מחק'),
-              ),
-            ],
-          ),
-        );
-      },
+      quoteDate: quote['date'] ?? '—',
+      onConfirm: () => widget.onDeleteQuote(quote),
     );
   }
 
@@ -238,136 +138,25 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   Future<void> _shareSelectedQuotes() async {
-    final selected = widget.quotes
-        .where((q) => _selectedQuoteIds.contains(q['id']))
-        .toList();
-    if (selected.isEmpty || _isSharingMultiple) return;
-
+    if (_isSharingMultiple) return;
     setState(() {
       _isSharingMultiple = true;
-      _sharingProgress = 0;
     });
-
-    showDialog(
+    await shareSelectedQuotes(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Directionality(
-            textDirection: TextDirection.rtl,
-            child: AlertDialog(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    'מכין קבצים... ($_sharingProgress/${selected.length})',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-
-    try {
-      final totalAmount = selected.fold<double>(
-        0,
-        (prev, q) => prev + ((q['total'] as num?)?.toDouble() ?? 0),
-      );
-      final senderName =
-          widget.businessName.isNotEmpty ? widget.businessName : 'העסק';
-      final message =
-          'שיתוף ${selected.length} הצעות מחיר מסך כולל של ₪${totalAmount.toStringAsFixed(0)}. תודה, $senderName.';
-
-      await Clipboard.setData(ClipboardData(text: message));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('הודעת השיתוף הועתקה ללוח! הדבק אותה בוואטסאפ'),
-            duration: Duration(seconds: 3),
-          ),
-        );
-      }
-
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) throw Exception("User not logged in");
-      final freshProfile = await FirestoreService.loadProfile(uid);
-      if (!mounted) return;
-      final profile = freshProfile ?? widget.profile;
-
-      final files = <XFile>[];
-      final tempDir = await getTemporaryDirectory();
-
-      if (!mounted) return;
-      for (int i = 0; i < selected.length; i++) {
-        final q = selected[i];
-        final bytes = await PdfService.generateQuotePdfBytes(
-          customer: q['customer'] is Map
-              ? Map<String, String>.from(q['customer'] as Map)
-              : null,
-          items: List<Map<String, dynamic>>.from(q['items'] ?? []),
-          total: (q['total'] as num?)?.toDouble() ?? 0.0,
-          notes: q['notes'] as String?,
-          profile: profile,
-          templateStyle: pdfTemplateNotifier.currentTemplate,
-        );
-
-        final title = q['title']?.toString() ?? 'הצעת מחיר';
-        final safeName = title.replaceAll(
-          RegExp(r'[^\u0590-\u05FF\w\s\-]'),
-          '',
-        ).trim();
-        final file = File('${tempDir.path}/${safeName}_$i.pdf');
-        await file.writeAsBytes(bytes);
-        files.add(XFile(file.path));
-
-        if (mounted) {
-          setState(() {
-            _sharingProgress = i + 1;
-          });
-          // This is a bit of a hack to force the dialog to rebuild
-          // A better solution would involve a dedicated state management for the dialog
-          (context as Element).markNeedsBuild();
-        }
-      }
-
-       if (!mounted) return;
-       Navigator.of(context).pop(); // Dismiss the progress dialog
-
-      await SharePlus.instance.share(ShareParams(files: files));
-
-      for (final f in files) {
-        final file = File(f.path);
-        Future.delayed(const Duration(seconds: 10), () async {
-          try {
-            if (await file.exists()) await file.delete();
-          } catch (_) {}
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        Navigator.of(context).pop(); // Dismiss on error too
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('שגיאה בשיתוף ההצעות: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
+      allQuotes: widget.quotes,
+      selectedQuoteIds: _selectedQuoteIds,
+      businessName: widget.businessName,
+      profile: widget.profile,
+      pdfTemplateNotifier: pdfTemplateNotifier,
+      onProgress: () => setState(() {}),
+      onExitSelection: () {
         setState(() {
           _isSharingMultiple = false;
-          _sharingProgress = 0;
         });
         _exitSelectionMode();
-      }
-    }
+      },
+    );
   }
 
   void _openAddCustomerDialog() {
@@ -397,63 +186,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   Widget _buildSearchBar() {
-    return TextField(
+    return CustomerSearchBar(
       controller: _searchController,
       onChanged: (value) {
         setState(() {
           _searchQuery = value;
         });
       },
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.onSurface,
-        fontSize: 14,
-      ),
-      decoration: InputDecoration(
-        hintText: 'חיפוש לקוח...',
-        hintStyle: TextStyle(
-          color: Theme.of(context)
-              .colorScheme
-              .onSurface
-              .withValues(alpha: 0.4),
-        ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurface
-              .withValues(alpha: 0.6),
-        ),
-        suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: Icon(
-                  Icons.clear,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.6),
-                ),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchQuery = '';
-                  });
-                  FocusScope.of(context).unfocus();
-                },
-              )
-            : null,
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary, width: 1.5),
-        ),
-      ),
     );
   }
 

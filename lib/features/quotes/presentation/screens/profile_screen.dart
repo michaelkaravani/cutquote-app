@@ -9,6 +9,7 @@ import 'package:cutquote/features/quotes/presentation/screens/profile/pdf_templa
 import 'package:cutquote/features/quotes/presentation/screens/profile/profile_details_card.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/vat_settings_card.dart';
 import 'package:cutquote/features/quotes/presentation/screens/profile/pdf_settings_card.dart';
+import 'package:cutquote/features/quotes/presentation/screens/profile/logout_dialog.dart';
 import 'about_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -59,36 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('התנתקות'),
-          content: const Text('האם אתה בטוח שברצונך להתנתק?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('ביטול', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('התנתק'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (confirmed != true) return;
-
-    await FirebaseAuth.instance.signOut();
-
+    await showLogoutConfirmation(context);
     if (!mounted) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
   }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'login/login_header.dart';
 import 'login/auth_error_handler.dart';
 import 'login/credential_service.dart';
 import 'login/biometric_auth_service.dart';
 import 'login/register_dialog.dart';
+import 'login/register_prompt.dart';
+import 'login/remember_me_row.dart';
 import 'login/forgot_password_handler.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -210,40 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Center(
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Theme.of(context).colorScheme.secondary,
-                        child: const Text(
-                          'CQ',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 38,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Text(
-                        'CutQuote Pro',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        'מערכת ניהול וחישוב הצעות מחיר לייצור',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
+                    const LoginHeader(),
                     const SizedBox(height: 40),
 
                     Text(
@@ -340,33 +310,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: Checkbox(
-                            value: _rememberMe,
-                            onChanged: _isLoading
-                                ? null
-                                : (v) => setState(() => _rememberMe = v ?? false),
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _isLoading
-                              ? null
-                              : () => setState(() => _rememberMe = !_rememberMe),
-                          child: Text(
-                            'זכור אותי',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ],
+                    RememberMeRow(
+                      value: _rememberMe,
+                      isLoading: _isLoading,
+                      onChanged: (v) => setState(() => _rememberMe = v),
                     ),
                     const SizedBox(height: 28),
 
@@ -424,28 +371,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                     const SizedBox(height: 24),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'אין לך חשבון עדיין?',
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-                        ),
-                        TextButton(
-                          onPressed: _isLoading ? null : _openRegisterDialog,
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                          ),
-                            child: Text(
-                              'הרשמה כאן',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.secondary,
-                                fontWeight: FontWeight.bold,
-                                decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
+                    RegisterPrompt(
+                      isLoading: _isLoading,
+                      onRegister: _openRegisterDialog,
                     ),
                   ],
                 ),

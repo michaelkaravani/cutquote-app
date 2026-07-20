@@ -5,6 +5,7 @@ import 'package:local_auth/local_auth.dart';
 
 class CredentialService {
   static Future<({String email, bool biometricAvailable, bool hasSavedPassword})> loadSavedCredentials() async {
+
     final prefs = await SharedPreferences.getInstance();
     final savedEmail = prefs.getString('saved_email') ?? '';
 
@@ -18,6 +19,8 @@ class CredentialService {
 
     final hasSavedPassword = prefs.getBool('has_credentials') ?? false;
 
+
+
     return (
       email: savedEmail,
       biometricAvailable: biometricAvailable,
@@ -30,6 +33,7 @@ class CredentialService {
     required String password,
     required bool rememberMe,
   }) async {
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('saved_email', email);
 

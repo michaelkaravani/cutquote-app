@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'catalog_item_dropdown.dart';
 
 class AddItemDialog extends StatefulWidget {
   final List<Map<String, dynamic>> catalog;
@@ -60,86 +61,21 @@ class _AddItemDialogState extends State<AddItemDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.catalog.isNotEmpty) ...[
-                DropdownButtonFormField<Map<String, dynamic>>(
-                  dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 16,
-                  ),
-                  alignment: Alignment.centerRight,
-                  decoration: InputDecoration(
-                    labelText: 'בחירה מהירה מהמועדפים שלך',
-                    labelStyle: TextStyle(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withValues(alpha: 0.6),
-                      fontWeight: FontWeight.bold,
-                    ),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.2),
-                      ),
-                    ),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Theme.of(context).colorScheme.secondary),
-                    ),
-                  ),
-                  items: widget.catalog.asMap().entries.map((entry) {
-                    final item = entry.value;
-                    return DropdownMenuItem<Map<String, dynamic>>(
-                      value: item,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          "${item['name'] ?? ''} (₪${item['price'] ?? ''})",
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textDirection: TextDirection.rtl,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (selectedItem) {
-                    if (selectedItem != null) {
-                      setState(() {
-                        nameController.text = selectedItem['name']?.toString() ?? '';
-                        priceController.text = (selectedItem['price'] as num?)?.toString() ?? '';
-                        quantityController.text = "1";
-                        quantityController.selection = TextSelection(
-                          baseOffset: 0,
-                          extentOffset: quantityController.text.length,
-                        );
-                      });
-                    }
+              if (widget.catalog.isNotEmpty)
+                CatalogItemDropdown(
+                  catalog: widget.catalog,
+                  onItemSelected: (selectedItem) {
+                    setState(() {
+                      nameController.text = selectedItem['name']?.toString() ?? '';
+                      priceController.text = (selectedItem['price'] as num?)?.toString() ?? '';
+                      quantityController.text = "1";
+                      quantityController.selection = TextSelection(
+                        baseOffset: 0,
+                        extentOffset: quantityController.text.length,
+                      );
+                    });
                   },
                 ),
-                const SizedBox(height: 15),
-                Row(
-                  children: [
-                    const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text(
-                        'או הקלדת פריט חדש',
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.4),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const Expanded(child: Divider()),
-                  ],
-                ),
-              ],
               TextField(
                 controller: nameController,
                 style: TextStyle(

@@ -37,23 +37,13 @@ Future<void> showRegisterDialog(BuildContext context) async {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'כתובת אימייל',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      TextFormField(
+                      _buildLabeledField(
+                        context: context,
+                        label: 'כתובת אימייל',
                         controller: emailController,
+                        hintText: 'name@example.com',
+                        prefixIcon: Icons.email_outlined,
                         keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'name@example.com',
-                          prefixIcon: Icon(Icons.email_outlined, size: 18),
-                        ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'אנא הזן אימייל';
@@ -65,35 +55,25 @@ Future<void> showRegisterDialog(BuildContext context) async {
                         },
                       ),
                       const SizedBox(height: 14),
-                      Text(
-                        'סיסמה',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      TextFormField(
+                      _buildLabeledField(
+                        context: context,
+                        label: 'סיסמה',
                         controller: passwordController,
+                        hintText: 'לפחות 6 תווים',
+                        prefixIcon: Icons.lock_outline,
                         obscureText: !isPasswordVisible,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'לפחות 6 תווים',
-                          prefixIcon: const Icon(Icons.lock_outline, size: 18),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              isPasswordVisible
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              size: 18,
-                            ),
-                            onPressed: () {
-                              dialogSetState(() {
-                                isPasswordVisible = !isPasswordVisible;
-                              });
-                            },
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            isPasswordVisible
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 18,
                           ),
+                          onPressed: () {
+                            dialogSetState(() {
+                              isPasswordVisible = !isPasswordVisible;
+                            });
+                          },
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -106,23 +86,13 @@ Future<void> showRegisterDialog(BuildContext context) async {
                         },
                       ),
                       const SizedBox(height: 14),
-                      Text(
-                        'אימות סיסמה',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      TextFormField(
+                      _buildLabeledField(
+                        context: context,
+                        label: 'אימות סיסמה',
                         controller: confirmPasswordController,
+                        hintText: 'הקלד את הסיסמה שנית',
+                        prefixIcon: Icons.lock_clock_outlined,
                         obscureText: !isPasswordVisible,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                        decoration: InputDecoration(
-                          hintText: 'הקלד את הסיסמה שנית',
-                          prefixIcon: Icon(Icons.lock_clock_outlined, size: 18),
-                        ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'אנא אשר את הסיסמה';
@@ -141,9 +111,7 @@ Future<void> showRegisterDialog(BuildContext context) async {
                 TextButton(
                   onPressed: isLoading
                       ? null
-                      : () {
-                          Navigator.pop(dialogContext);
-                        },
+                      : () => Navigator.pop(dialogContext),
                   child: const Text(
                     'ביטול',
                     style: TextStyle(color: Colors.grey),
@@ -154,32 +122,25 @@ Future<void> showRegisterDialog(BuildContext context) async {
                       ? null
                       : () async {
                           if (formKey.currentState?.validate() ?? false) {
-                            dialogSetState(() {
-                              isLoading = true;
-                            });
+                            dialogSetState(() => isLoading = true);
 
-                            final NavigatorState dialogNavigator =
-                                Navigator.of(dialogContext);
-                            final ScaffoldMessengerState messenger =
-                                ScaffoldMessenger.of(context);
-                            final Color accentColor =
-                                Theme.of(context).colorScheme.secondary;
+                            final navigator = Navigator.of(dialogContext);
+                            final messenger = ScaffoldMessenger.of(context);
+                            final accentColor = Theme.of(context).colorScheme.secondary;
 
                             try {
-                              UserCredential userCredential =
-                                  await FirebaseAuth.instance
-                                      .createUserWithEmailAndPassword(
-                                        email: emailController.text.trim(),
-                                        password: passwordController.text,
-                                      );
+                              final userCredential = await FirebaseAuth.instance
+                                  .createUserWithEmailAndPassword(
+                                email: emailController.text.trim(),
+                                password: passwordController.text,
+                              );
 
                               if (userCredential.user != null) {
-                                await userCredential.user
-                                    ?.sendEmailVerification();
+                                await userCredential.user!.sendEmailVerification();
                                 await FirebaseAuth.instance.signOut();
                               }
 
-                              dialogNavigator.pop();
+                              navigator.pop();
 
                               messenger.showSnackBar(
                                 SnackBar(
@@ -206,9 +167,7 @@ Future<void> showRegisterDialog(BuildContext context) async {
                               );
                             } finally {
                               if (dialogContext.mounted) {
-                                dialogSetState(() {
-                                  isLoading = false;
-                                });
+                                dialogSetState(() => isLoading = false);
                               }
                             }
                           }
@@ -239,4 +198,43 @@ Future<void> showRegisterDialog(BuildContext context) async {
   emailController.dispose();
   passwordController.dispose();
   confirmPasswordController.dispose();
+}
+
+Widget _buildLabeledField({
+  required BuildContext context,
+  required String label,
+  required TextEditingController controller,
+  required String hintText,
+  required IconData prefixIcon,
+  bool obscureText = false,
+  Widget? suffixIcon,
+  TextInputType? keyboardType,
+  String? Function(String?)? validator,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+      const SizedBox(height: 4),
+      TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(prefixIcon, size: 18),
+          suffixIcon: suffixIcon,
+        ),
+        validator: validator,
+      ),
+    ],
+  );
 }

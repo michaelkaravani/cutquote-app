@@ -1,12 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
 import 'package:cutquote/core/firestore_service.dart';
-import 'package:file_picker/file_picker.dart';
 import 'logo_picker.dart';
+import 'logo_picker_service.dart';
 
 class ProfileDetailsCard extends StatefulWidget {
   final Map<String, dynamic> initialProfile;
@@ -99,68 +95,23 @@ class _ProfileDetailsCardState extends State<ProfileDetailsCard> {
 
   Future<void> _pickLogo() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['svg', 'png', 'jpg', 'jpeg'],
-      );
-
-      if (result == null || result.files.single.path == null) return;
-
-      final sourceFile = File(result.files.single.path!);
-      final extension = result.files.single.extension?.toLowerCase();
-      final size = result.files.single.size;
-
-      if (size > 5 * 1024 * 1024) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('הקובץ גדול מדי. המגבלה היא 5MB.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-        return;
+      final savedPath = await pickBusinessLogo();
+      if (savedPath != null && mounted) {
+        setState(() => _logoPath = savedPath);
       }
-
-      var isValid = false;
-      if (extension == 'svg') {
-        final svgContent = await sourceFile.readAsString();
-        final svgRootPattern = RegExp(r'<svg(?:\s|>)', caseSensitive: false);
-        isValid =
-            svgRootPattern.hasMatch(svgContent) &&
-            svgContent.toLowerCase().contains('</svg>');
-      } else if (extension == 'png' ||
-          extension == 'jpg' ||
-          extension == 'jpeg') {
-        isValid = img.decodeImage(await sourceFile.readAsBytes()) != null;
-      }
-
-      if (!isValid) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('קובץ הלוגו פגום או אינו בפורמט נתמך.'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-        return;
-      }
-
-      final dir = await getApplicationDocumentsDirectory();
-      final fileName =
-          'business_logo_${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final savedPath = '${dir.path}/$fileName';
-
-      await sourceFile.copy(savedPath);
-
+    } on LogoPickerException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _logoPath = savedPath;
-      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('שגיאה בבחירת הלוגו: $e'),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Colors.redAccent,
         ),
       );
