@@ -8,6 +8,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'firebase_options.dart';
 import 'core/app_theme.dart';
 import 'core/theme_notifier.dart' show themeNotifier;
+import 'core/pdf_template_notifier.dart';
 import 'core/error_boundary.dart';
 import 'features/quotes/presentation/screens/home_screen.dart';
 import 'features/quotes/presentation/screens/login_screen.dart';
@@ -19,17 +20,18 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+    );
 
     // Pass all uncaught "fatal" errors from the framework to Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    
+
     // Pass all uncaught asynchronous errors that aren't handled by the Flutter framework to Crashlytics
     PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
-
   } catch (e, stack) {
     // This is a rare case where Firebase initialization itself fails.
     // We can't log to Crashlytics, so we just print to console.
@@ -48,13 +50,29 @@ void _logError(String context, Object error, StackTrace? stack) {
     debugPrint('STACK TRACE:\n$stack');
   }
   debugPrint('═══════════════════════════════════════');
-  
+
   // Send non-fatal errors to Crashlytics
   FirebaseCrashlytics.instance.recordError(error, stack, reason: context);
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  String? _initializingUid;
+  Future<void>? _templateInitialization;
+
+  Future<void> _initializeTemplate(String uid) {
+    if (_initializingUid != uid || _templateInitialization == null) {
+      _initializingUid = uid;
+      _templateInitialization = pdfTemplateNotifier.initialize(uid);
+    }
+    return _templateInitialization!;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,9 +125,7 @@ class MyApp extends StatelessWidget {
                             Text(
                               'לא ניתן להתחבר לשרת. בדוק את חיבור האינטרנט.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                              ),
+                              style: TextStyle(color: Colors.grey.shade600),
                             ),
                           ],
                         ),
@@ -121,14 +137,28 @@ class MyApp extends StatelessWidget {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return Scaffold(
                     backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-                    body: const Center(
-                      child: CircularProgressIndicator(),
-                    ),
+                    body: const Center(child: CircularProgressIndicator()),
                   );
                 }
 
                 if (snapshot.data?.emailVerified == true) {
-                  return const HomeScreen();
+                  return FutureBuilder<void>(
+                    future: _initializeTemplate(snapshot.data!.uid),
+                    builder: (context, templateSnapshot) {
+                      if (templateSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return Scaffold(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).scaffoldBackgroundColor,
+                          body: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+                      return const HomeScreen();
+                    },
+                  );
                 }
 
                 return const LoginScreen();

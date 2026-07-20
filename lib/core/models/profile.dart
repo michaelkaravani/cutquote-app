@@ -10,6 +10,7 @@ class Profile {
   final bool vatExempt;
   final String defaultPdfNotes;
   final String paymentTerms;
+  final String pdfTemplateStyle;
 
   Profile({
     required this.businessName,
@@ -20,6 +21,7 @@ class Profile {
     this.vatExempt = false,
     this.defaultPdfNotes = '',
     this.paymentTerms = '',
+    this.pdfTemplateStyle = 'premium_dark',
   });
 
   /// Create Profile from Firestore document
@@ -34,6 +36,7 @@ class Profile {
       vatExempt: data['vatExempt'] as bool? ?? false,
       defaultPdfNotes: data['defaultPdfNotes'] as String? ?? '',
       paymentTerms: data['paymentTerms'] as String? ?? '',
+      pdfTemplateStyle: data['pdfTemplateStyle'] as String? ?? 'premium_dark',
     );
   }
 
@@ -48,6 +51,7 @@ class Profile {
       vatExempt: map['vatExempt'] as bool? ?? false,
       defaultPdfNotes: map['defaultPdfNotes'] as String? ?? '',
       paymentTerms: map['paymentTerms'] as String? ?? '',
+      pdfTemplateStyle: map['pdfTemplateStyle'] as String? ?? 'premium_dark',
     );
   }
 
@@ -62,6 +66,7 @@ class Profile {
       'vatExempt': vatExempt,
       'defaultPdfNotes': defaultPdfNotes,
       'paymentTerms': paymentTerms,
+      'pdfTemplateStyle': pdfTemplateStyle,
     };
   }
 
@@ -76,6 +81,7 @@ class Profile {
       'vatExempt': vatExempt,
       'defaultPdfNotes': defaultPdfNotes,
       'paymentTerms': paymentTerms,
+      'pdfTemplateStyle': pdfTemplateStyle,
     };
   }
 
@@ -89,6 +95,7 @@ class Profile {
     bool? vatExempt,
     String? defaultPdfNotes,
     String? paymentTerms,
+    String? pdfTemplateStyle,
   }) {
     return Profile(
       businessName: businessName ?? this.businessName,
@@ -99,12 +106,13 @@ class Profile {
       vatExempt: vatExempt ?? this.vatExempt,
       defaultPdfNotes: defaultPdfNotes ?? this.defaultPdfNotes,
       paymentTerms: paymentTerms ?? this.paymentTerms,
+      pdfTemplateStyle: pdfTemplateStyle ?? this.pdfTemplateStyle,
     );
   }
 
   @override
   String toString() {
-    return 'Profile(businessName: $businessName, phone: $phone, email: $email, logoPath: $logoPath, vatRate: $vatRate, vatExempt: $vatExempt)';
+    return 'Profile(businessName: $businessName, phone: $phone, email: $email, logoPath: $logoPath, vatRate: $vatRate, vatExempt: $vatExempt, pdfTemplateStyle: $pdfTemplateStyle)';
   }
 
   @override
@@ -118,7 +126,8 @@ class Profile {
         other.vatRate == vatRate &&
         other.vatExempt == vatExempt &&
         other.defaultPdfNotes == defaultPdfNotes &&
-        other.paymentTerms == paymentTerms;
+        other.paymentTerms == paymentTerms &&
+        other.pdfTemplateStyle == pdfTemplateStyle;
   }
 
   @override
@@ -130,6 +139,7 @@ class Profile {
         vatRate.hashCode ^
         vatExempt.hashCode ^
         defaultPdfNotes.hashCode ^
-        paymentTerms.hashCode;
+        paymentTerms.hashCode ^
+        pdfTemplateStyle.hashCode;
   }
 }

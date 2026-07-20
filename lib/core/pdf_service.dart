@@ -8,7 +8,6 @@ import 'pdf_templates/natural_craft_template.dart';
 import 'pdf_templates/hebrew_pdf_poc.dart';
 import 'pdf_templates/modern_bordeaux_template.dart';
 
-
 class PdfService {
   static Future<Uint8List> generateQuotePdfBytes({
     required Map<String, String>? customer,
@@ -52,8 +51,15 @@ class PdfService {
           profile: profile,
         );
       case 'modern_bordeaux':
-      default:
         return _buildModernBordeauxPdf(
+          customer: customer,
+          items: items,
+          total: total,
+          notes: notes,
+          profile: profile,
+        );
+      default:
+        return _buildPremiumDarkPdf(
           customer: customer,
           items: items,
           total: total,
@@ -105,7 +111,9 @@ class PdfService {
     final output = await getTemporaryDirectory();
     final file = File('${output.path}/$filename');
     await file.writeAsBytes(pdfBytes);
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'הצעת מחיר מ$senderName'));
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: 'הצעת מחיר מ$senderName'),
+    );
   }
 
   // ==========================================
@@ -204,5 +212,4 @@ class PdfService {
       profile: profile,
     );
   }
-
 }

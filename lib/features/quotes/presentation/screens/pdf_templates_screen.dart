@@ -8,39 +8,37 @@ class PdfTemplatesScreen extends StatelessWidget {
   const PdfTemplatesScreen({super.key});
 
   void _showPreview(BuildContext context, _TemplateInfo info) {
-    context.push(Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('תצוגה מקדימה — ${info.title}'),
-        ),
-        body: PdfPreview(
-          build: (format) => PdfService.generatePreviewPdfBytes(
-            templateStyle: info.key,
-            customer: const <String, String>{
-              'name': 'ישראל ישראלי',
-              'hp': '123456789',
-              'address': 'רחוב הדוגמה 1, תל אביב',
-              'phone': '050-1234567',
-            },
-            items: const [
-              {'name': 'מוצר לדוגמה א', 'price': 250.0, 'quantity': 10},
-              {'name': 'מוצר לדוגמה ב', 'price': 85.0, 'quantity': 5},
-            ],
-            total: 2925.0,
-            notes: 'הערות לדוגמה',
-            profile: <String, dynamic>{
-              'businessName': 'מיכאל פרסיז\'ן ארט',
-              'phone': '050-4426130',
-              'email': 'michaelprecisionart@gmail.com',
-            },
-          ),
-          loadingWidget: const Center(
-            child: CircularProgressIndicator(),
+    context.push(
+      Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          appBar: AppBar(title: Text('תצוגה מקדימה — ${info.title}')),
+          body: PdfPreview(
+            build: (format) => PdfService.generatePreviewPdfBytes(
+              templateStyle: info.key,
+              customer: const <String, String>{
+                'name': 'ישראל ישראלי',
+                'hp': '123456789',
+                'address': 'רחוב הדוגמה 1, תל אביב',
+                'phone': '050-1234567',
+              },
+              items: const [
+                {'name': 'מוצר לדוגמה א', 'price': 250.0, 'quantity': 10},
+                {'name': 'מוצר לדוגמה ב', 'price': 85.0, 'quantity': 5},
+              ],
+              total: 2925.0,
+              notes: 'הערות לדוגמה',
+              profile: <String, dynamic>{
+                'businessName': 'מיכאל פרסיז\'ן ארט',
+                'phone': '050-4426130',
+                'email': 'michaelprecisionart@gmail.com',
+              },
+            ),
+            loadingWidget: const Center(child: CircularProgressIndicator()),
           ),
         ),
       ),
-    ));
+    );
   }
 
   static const _templates = [
@@ -68,7 +66,8 @@ class PdfTemplatesScreen extends StatelessWidget {
     _TemplateInfo(
       key: 'minimal_stone',
       title: 'אקווה גיאומטרי',
-      subtitle: 'עיצוב גיאומטרי יוקרתי בגווני טורקיז וכחול עמוק, מתאים להצעות מחיר מודרניות.',
+      subtitle:
+          'עיצוב גיאומטרי יוקרתי בגווני טורקיז וכחול עמוק, מתאים להצעות מחיר מודרניות.',
       bandColors: [Color(0xFF0A2540), Color(0xFF00D4B2)],
       baseColor: Color(0xFFF4FBFB),
     ),
@@ -86,9 +85,7 @@ class PdfTemplatesScreen extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('תבניות PDF'),
-        ),
+        appBar: AppBar(title: const Text('תבניות PDF')),
         body: ListenableBuilder(
           listenable: pdfTemplateNotifier,
           builder: (context, _) {
@@ -103,7 +100,19 @@ class PdfTemplatesScreen extends StatelessWidget {
                 return _TemplateCard(
                   info: t,
                   isSelected: isSelected,
-                  onTap: () => pdfTemplateNotifier.setTemplate(t.key),
+                  onTap: () async {
+                    try {
+                      await pdfTemplateNotifier.setTemplate(t.key);
+                    } catch (error) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('שמירת התבנית נכשלה: $error'),
+                          backgroundColor: Colors.redAccent,
+                        ),
+                      );
+                    }
+                  },
                   onPreview: () => _showPreview(context, t),
                 );
               },
@@ -184,9 +193,7 @@ class _TemplateCard extends StatelessWidget {
                       child: Container(
                         height: 28,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: info.bandColors,
-                          ),
+                          gradient: LinearGradient(colors: info.bandColors),
                           borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(7),
                             topRight: Radius.circular(7),
@@ -209,8 +216,9 @@ class _TemplateCard extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: info.bandColors.length > 1
-                                    ? info.bandColors.last
-                                        .withValues(alpha: 0.4)
+                                    ? info.bandColors.last.withValues(
+                                        alpha: 0.4,
+                                      )
                                     : Colors.grey.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(2),
                               ),
@@ -238,8 +246,9 @@ class _TemplateCard extends StatelessWidget {
                     Text(
                       info.subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurface
-                            .withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                     ),
                   ],

@@ -85,17 +85,9 @@ Future<Uint8List> buildCleanCorporatePdf({
                           width: 48,
                           height: 48,
                           margin: const pw.EdgeInsets.only(left: 12),
-                          padding: const pw.EdgeInsets.all(5),
-                          decoration: pw.BoxDecoration(
-                            color: PdfColors.white,
-                            shape: pw.BoxShape.circle,
-                            border: pw.Border.all(color: brandTeal, width: 1.5),
-                          ),
-                          child: pw.ClipOval(
-                            child: pw.Image(
-                              pw.MemoryImage(logoBytes),
-                              fit: pw.BoxFit.contain,
-                            ),
+                          child: pw.Image(
+                            pw.MemoryImage(logoBytes),
+                            fit: pw.BoxFit.contain,
                           ),
                         ),
                       pw.Column(

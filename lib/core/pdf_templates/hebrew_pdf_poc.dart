@@ -288,23 +288,12 @@ Future<Uint8List> buildHebrewPocPdf({
                             child: pw.SvgImage(svg: logoSvg),
                           )
                         else if (logoBytes != null)
-                          pw.Container(
+                          pw.SizedBox(
                             width: 72,
                             height: 72,
-                            padding: const pw.EdgeInsets.all(8),
-                            decoration: pw.BoxDecoration(
-                              color: PdfColors.white,
-                              shape: pw.BoxShape.circle,
-                              border: pw.Border.all(
-                                color: accentCyan,
-                                width: 2,
-                              ),
-                            ),
-                            child: pw.ClipOval(
-                              child: pw.Image(
-                                pw.MemoryImage(logoBytes),
-                                fit: pw.BoxFit.contain,
-                              ),
+                            child: pw.Image(
+                              pw.MemoryImage(logoBytes),
+                              fit: pw.BoxFit.contain,
                             ),
                           ),
                       ],

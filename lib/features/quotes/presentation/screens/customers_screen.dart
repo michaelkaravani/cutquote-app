@@ -547,6 +547,20 @@ class _CustomersScreenState extends State<CustomersScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.secondary,
+                  child: const Text(
+                    'CQ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
           ],
         ),
